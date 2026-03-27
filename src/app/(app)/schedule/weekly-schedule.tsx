@@ -149,8 +149,9 @@ export function WeeklySchedule({ initialSessions }: { initialSessions: Session[]
         </div>
       </div>
 
-      {/* Weekly Grid */}
-      <div className="grid grid-cols-7 gap-3">
+      {/* Weekly Grid — horizontal scroll on mobile */}
+      <div className="overflow-x-auto -mx-4 md:mx-0 pb-2">
+      <div className="grid grid-cols-7 gap-2 md:gap-3 min-w-[560px] px-4 md:px-0">
         {DAYS.map((day) => {
           const daySessions = initialSessions
             .filter((s) => s.day_of_week === day)
@@ -215,6 +216,7 @@ export function WeeklySchedule({ initialSessions }: { initialSessions: Session[]
             </div>
           )
         })}
+      </div>
       </div>
 
       {/* Modal */}

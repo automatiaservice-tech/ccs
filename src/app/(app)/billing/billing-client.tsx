@@ -79,10 +79,15 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
     <>
       <div className="space-y-4">
         {/* Filters + Actions */}
-        <div className="flex flex-wrap gap-3 items-center justify-between">
+        <div className="space-y-3">
+          {/* Button full width on mobile */}
+          <Button onClick={() => setShowGenerateModal(true)} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4" />
+            Generar facturas del mes
+          </Button>
           <div className="flex gap-2 flex-wrap">
             <Select value={filterMonth} onValueChange={setFilterMonth}>
-              <SelectTrigger className="w-36">
+              <SelectTrigger className="w-36 h-9 text-xs">
                 <SelectValue placeholder="Mes" />
               </SelectTrigger>
               <SelectContent>
@@ -92,9 +97,8 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                 ))}
               </SelectContent>
             </Select>
-
             <Select value={filterYear} onValueChange={setFilterYear}>
-              <SelectTrigger className="w-28">
+              <SelectTrigger className="w-24 h-9 text-xs">
                 <SelectValue placeholder="Año" />
               </SelectTrigger>
               <SelectContent>
@@ -104,9 +108,8 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                 ))}
               </SelectContent>
             </Select>
-
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-36">
+              <SelectTrigger className="w-36 h-9 text-xs">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -117,81 +120,106 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
               </SelectContent>
             </Select>
           </div>
-
-          <Button onClick={() => setShowGenerateModal(true)}>
-            <Plus className="h-4 w-4" />
-            Generar facturas del mes
-          </Button>
         </div>
 
-        {/* Table */}
-        <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-700">
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Nº Factura</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Cliente</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Período</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Total</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-400">
-                    No se encontraron facturas
-                  </td>
+        {/* ── Mobile: card list ── */}
+        <div className="sm:hidden space-y-2">
+          {filtered.length === 0 ? (
+            <p className="text-center py-10 text-slate-400 text-sm">No se encontraron facturas</p>
+          ) : (
+            filtered.map((inv) => (
+              <button
+                key={inv.id}
+                onClick={() => router.push(`/billing/${inv.id}`)}
+                className="w-full text-left rounded-xl border border-slate-700 bg-slate-800 p-4 hover:border-blue-500/50 transition-colors active:bg-slate-700"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-100 truncate">{inv.clients?.name}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {getMonthName(inv.month)} {inv.year} · {inv.invoice_number || '—'}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <span className="text-sm font-bold text-slate-100">{formatCurrency(inv.total_amount)}</span>
+                    <Badge className={getStatusBadgeColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
+                  </div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+
+        {/* ── Tablet/Desktop: table ── */}
+        <div className="hidden sm:block rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-700">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase hidden md:table-cell">Nº Factura</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Cliente</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Período</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Total</th>
+                  <th className="px-4 py-3 w-16"></th>
                 </tr>
-              ) : (
-                filtered.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    className="border-b border-slate-700/50 hover:bg-slate-700/30 cursor-pointer transition-colors"
-                    onClick={() => router.push(`/billing/${inv.id}`)}
-                  >
-                    <td className="px-4 py-3.5 text-sm text-slate-400">
-                      {inv.invoice_number || `CCS-${inv.year}-???`}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="text-sm font-medium text-slate-100">{inv.clients?.name}</p>
-                      {inv.clients?.email && (
-                        <p className="text-xs text-slate-400">{inv.clients.email}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 text-sm text-slate-300">
-                      {getMonthName(inv.month)} {inv.year}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <Badge className={getStatusBadgeColor(inv.status)}>
-                        {getStatusLabel(inv.status)}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3.5 text-right text-sm font-semibold text-slate-100">
-                      {formatCurrency(inv.total_amount)}
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={(e) => handleDelete(inv.id, e)}
-                          disabled={deletingId === inv.id}
-                          className="p-1 text-slate-500 hover:text-red-400 transition-colors"
-                        >
-                          {deletingId === inv.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </button>
-                        <ChevronRight className="h-4 w-4 text-slate-500" />
-                      </div>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-12 text-slate-400">
+                      No se encontraron facturas
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filtered.map((inv) => (
+                    <tr
+                      key={inv.id}
+                      className="border-b border-slate-700/50 hover:bg-slate-700/30 cursor-pointer transition-colors"
+                      onClick={() => router.push(`/billing/${inv.id}`)}
+                    >
+                      <td className="px-4 py-3.5 text-sm text-slate-400 hidden md:table-cell">
+                        {inv.invoice_number || `CCS-${inv.year}-???`}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="text-sm font-medium text-slate-100">{inv.clients?.name}</p>
+                        {inv.clients?.email && (
+                          <p className="text-xs text-slate-400">{inv.clients.email}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-sm text-slate-300">
+                        {getMonthName(inv.month)} {inv.year}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <Badge className={getStatusBadgeColor(inv.status)}>
+                          {getStatusLabel(inv.status)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3.5 text-right text-sm font-semibold text-slate-100">
+                        {formatCurrency(inv.total_amount)}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={(e) => handleDelete(inv.id, e)}
+                            disabled={deletingId === inv.id}
+                            className="p-1.5 text-slate-500 hover:text-red-400 transition-colors"
+                          >
+                            {deletingId === inv.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                          <ChevronRight className="h-4 w-4 text-slate-500" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <p className="text-xs text-slate-500">

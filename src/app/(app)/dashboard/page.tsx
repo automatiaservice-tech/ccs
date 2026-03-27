@@ -29,7 +29,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <Card>
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
@@ -119,7 +119,7 @@ export default async function DashboardPage() {
       {/* Quick Access */}
       <div>
         <h2 className="text-base font-semibold text-slate-300 mb-3">Accesos rápidos</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Link
             href="/schedule/checkin"
             className="flex items-center justify-between p-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-750 hover:border-blue-500/50 transition-colors group"

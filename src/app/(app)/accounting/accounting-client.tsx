@@ -158,7 +158,7 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
         <Card>
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
@@ -208,7 +208,7 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
       </div>
 
       {/* Income breakdown + Expenses */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Income by type */}
         <Card>
           <CardHeader>
@@ -251,6 +251,7 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
                 Sin gastos registrados este mes
               </p>
             ) : (
+            <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-700">
@@ -304,6 +305,7 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
                   </tr>
                 </tfoot>
               </table>
+            </div>
             )}
           </CardContent>
         </Card>
