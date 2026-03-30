@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatCurrency, getProfileTypeLabel, getProfileTypeBadgeColor } from '@/lib/utils'
 import { saveAttendance, getAttendanceForSession } from '@/lib/actions/attendance'
 
+const SESSION_PRICE = 40
+
 interface Client {
   id: string
   name: string
@@ -27,6 +29,22 @@ interface Session {
   session_clients?: { clients?: Client }[]
 }
 
+/**
+ * Cost preview for a single client.
+ * Rules (driven by CLIENT profile_type, not session type):
+ *   - fixed_group   → "Cuota fija"
+ *   - variable_group → 40 / total_attendees
+ *   - individual    → 40 € flat
+ */
+function costPreview(client: Client, attendeesCount: number): string {
+  if (client.profile_type === 'fixed_group') return 'Cuota fija'
+  if (client.profile_type === 'variable_group') {
+    return attendeesCount > 0 ? formatCurrency(SESSION_PRICE / attendeesCount) : '—'
+  }
+  // individual (or unknown)
+  return formatCurrency(SESSION_PRICE)
+}
+
 export function CheckinClient({ sessions }: { sessions: Session[] }) {
   const router = useRouter()
   const [selectedSessionId, setSelectedSessionId] = useState<string>('')
@@ -37,9 +55,10 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
   const today = new Date().toISOString().split('T')[0]
 
   const selectedSession = sessions.find((s) => s.id === selectedSessionId)
-  const activeClients = selectedSession?.session_clients
-    ?.filter((sc) => sc.clients?.active)
-    ?.map((sc) => sc.clients as Client) || []
+  const activeClients =
+    selectedSession?.session_clients
+      ?.filter((sc) => sc.clients?.active)
+      ?.map((sc) => sc.clients as Client) || []
 
   // Initialize attendance when session changes
   useEffect(() => {
@@ -51,13 +70,17 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
         if (records.length > 0) {
           setHasExisting(true)
           const existing: Record<string, boolean> = {}
-          records.forEach((r) => { existing[r.client_id] = r.attended })
+          records.forEach((r) => {
+            existing[r.client_id] = r.attended
+          })
           setAttendance(existing)
         } else {
           setHasExisting(false)
           // Default all active clients to attended
           const defaults: Record<string, boolean> = {}
-          activeClients.forEach((c) => { defaults[c.id] = true })
+          activeClients.forEach((c) => {
+            defaults[c.id] = true
+          })
           setAttendance(defaults)
         }
       })
@@ -65,17 +88,9 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
       .finally(() => setLoadingExisting(false))
   }, [selectedSessionId])
 
-  // Calculate cost preview
+  // Counts
   const attendeesCount = Object.values(attendance).filter(Boolean).length
-  const getCostPreview = (clientId: string) => {
-    if (!attendance[clientId]) return '—'
-    if (!selectedSession) return '—'
-    const type = selectedSession.session_type
-    if (type === 'fixed_group') return 'Cuota fija'
-    if (type === 'variable_group') return formatCurrency(attendeesCount > 0 ? 40 / attendeesCount : 0)
-    if (type === 'individual') return formatCurrency(40)
-    return '—'
-  }
+  const hasVariableClients = activeClients.some((c) => c.profile_type === 'variable_group')
 
   const handleSave = async () => {
     if (!selectedSession) return
@@ -86,17 +101,12 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
         attended: attendance[c.id] ?? false,
       }))
 
-      await saveAttendance(
-        selectedSession.id,
-        today,
-        entries,
-        selectedSession.session_type
-      )
+      await saveAttendance(selectedSession.id, today, entries)
 
       toast.success('Lista guardada correctamente')
       router.refresh()
-    } catch {
-      toast.error('Error al guardar la lista')
+    } catch (err: any) {
+      toast.error(err.message || 'Error al guardar la lista')
     } finally {
       setSaving(false)
     }
@@ -158,6 +168,7 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
               </p>
             )}
           </CardHeader>
+
           <CardContent className="space-y-2">
             {activeClients.length === 0 ? (
               <p className="text-center py-6 text-slate-400 text-sm">
@@ -165,23 +176,27 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
               </p>
             ) : (
               <>
-                {/* Select all */}
+                {/* Select all + variable cost indicator */}
                 <div className="flex items-center justify-between pb-2 border-b border-slate-700">
                   <button
                     onClick={() => {
                       const allAttended = activeClients.every((c) => attendance[c.id])
                       const newVal: Record<string, boolean> = {}
-                      activeClients.forEach((c) => { newVal[c.id] = !allAttended })
+                      activeClients.forEach((c) => {
+                        newVal[c.id] = !allAttended
+                      })
                       setAttendance(newVal)
                     }}
                     className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
                   >
                     <CheckSquare className="h-3.5 w-3.5" />
-                    {activeClients.every((c) => attendance[c.id]) ? 'Desmarcar todos' : 'Marcar todos'}
+                    {activeClients.every((c) => attendance[c.id])
+                      ? 'Desmarcar todos'
+                      : 'Marcar todos'}
                   </button>
-                  {selectedSession.session_type === 'variable_group' && attendeesCount > 0 && (
+                  {hasVariableClients && attendeesCount > 0 && (
                     <span className="text-xs text-slate-400">
-                      {formatCurrency(40 / attendeesCount)} / persona
+                      Variable: {formatCurrency(SESSION_PRICE / attendeesCount)} / persona
                     </span>
                   )}
                 </div>
@@ -196,25 +211,34 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
                         id={client.id}
                         checked={attendance[client.id] ?? false}
                         onCheckedChange={(checked) =>
-                          setAttendance((prev) => ({ ...prev, [client.id]: checked === true }))
+                          setAttendance((prev) => ({
+                            ...prev,
+                            [client.id]: checked === true,
+                          }))
                         }
                       />
                       <label htmlFor={client.id} className="cursor-pointer">
                         <p className="text-sm font-medium text-slate-100">{client.name}</p>
-                        <Badge className={`mt-0.5 text-[10px] ${getProfileTypeBadgeColor(client.profile_type)}`}>
+                        <Badge
+                          className={`mt-0.5 text-[10px] ${getProfileTypeBadgeColor(client.profile_type)}`}
+                        >
                           {getProfileTypeLabel(client.profile_type)}
                         </Badge>
                       </label>
                     </div>
                     <span className="text-sm font-medium text-slate-300">
-                      {getCostPreview(client.id)}
+                      {attendance[client.id] ? costPreview(client, attendeesCount) : '—'}
                     </span>
                   </div>
                 ))}
 
                 <div className="pt-4 flex justify-end">
                   <Button onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
                     Guardar lista
                   </Button>
                 </div>

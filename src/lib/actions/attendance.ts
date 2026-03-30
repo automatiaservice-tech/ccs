@@ -3,23 +3,45 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+const SESSION_PRICE = 40 // €
+
 export interface AttendanceEntry {
   client_id: string
   attended: boolean
 }
 
+/**
+ * Save attendance for a session on a given date.
+ *
+ * Pricing rules (driven by CLIENT profile_type, not session type):
+ *   - fixed_group  → cost = 0  (billed via monthly flat fee)
+ *   - variable_group → cost = 40 / total_attendees_this_session_today
+ *   - individual   → cost = 40 (always, regardless of session type)
+ */
 export async function saveAttendance(
   sessionId: string,
   date: string,
-  entries: AttendanceEntry[],
-  sessionType: string
+  entries: AttendanceEntry[]
 ) {
   const supabase = await createClient()
 
-  // Calculate attendees count (only those who attended)
+  // Fetch profile types for every client in this call
+  const clientIds = entries.map((e) => e.client_id)
+  const { data: clients, error: clientsErr } = await supabase
+    .from('clients')
+    .select('id, profile_type')
+    .in('id', clientIds)
+
+  if (clientsErr) throw new Error(`Error fetching client profiles: ${clientsErr.message}`)
+
+  const profileOf: Record<string, string> = Object.fromEntries(
+    (clients || []).map((c) => [c.id, c.profile_type])
+  )
+
+  // Total attendees count (used for variable_group proration)
   const attendeesCount = entries.filter((e) => e.attended).length
 
-  // Delete existing records for this session+date
+  // Delete existing records for this session+date (idempotent save)
   await supabase
     .from('attendance_records')
     .delete()
@@ -28,16 +50,20 @@ export async function saveAttendance(
 
   if (entries.length === 0) return
 
-  // Calculate cost per person based on session type
   const records = entries.map((entry) => {
     let cost = 0
     if (entry.attended) {
-      if (sessionType === 'fixed_group') {
+      const pt = profileOf[entry.client_id] ?? 'individual'
+      if (pt === 'fixed_group') {
         cost = 0
-      } else if (sessionType === 'variable_group') {
-        cost = attendeesCount > 0 ? 40 / attendeesCount : 0
-      } else if (sessionType === 'individual') {
-        cost = 40
+      } else if (pt === 'variable_group') {
+        cost =
+          attendeesCount > 0
+            ? Math.round((SESSION_PRICE / attendeesCount) * 100) / 100
+            : 0
+      } else {
+        // individual (and any unknown type) → flat 40 €
+        cost = SESSION_PRICE
       }
     }
     return {
@@ -50,7 +76,7 @@ export async function saveAttendance(
   })
 
   const { error } = await supabase.from('attendance_records').insert(records)
-  if (error) throw error
+  if (error) throw new Error(`Error saving attendance: ${error.message}`)
 
   revalidatePath('/schedule/checkin')
   revalidatePath('/dashboard')
@@ -64,7 +90,7 @@ export async function getAttendanceForSession(sessionId: string, date: string) {
     .eq('session_id', sessionId)
     .eq('date', date)
 
-  if (error) throw error
+  if (error) throw new Error(`Error fetching attendance: ${error.message}`)
   return data
 }
 
@@ -82,7 +108,8 @@ export async function getDashboardStats() {
     .eq('year', year)
     .eq('status', 'paid')
 
-  const monthlyIncome = invoicesData?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0
+  const monthlyIncome =
+    invoicesData?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0
 
   // Total gastos del mes
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
@@ -93,7 +120,8 @@ export async function getDashboardStats() {
     .gte('date', startDate)
     .lte('date', endDate)
 
-  const monthlyExpenses = expensesData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+  const monthlyExpenses =
+    expensesData?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
 
   // Clientes activos
   const { count: activeClients } = await supabase

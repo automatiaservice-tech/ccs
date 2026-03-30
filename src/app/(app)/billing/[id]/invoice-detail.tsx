@@ -10,8 +10,67 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { formatCurrency, formatDate, getMonthName, getStatusBadgeColor, getStatusLabel } from '@/lib/utils'
+import {
+  formatCurrency,
+  formatDate,
+  getMonthName,
+  getStatusBadgeColor,
+  getStatusLabel,
+} from '@/lib/utils'
 import { updateInvoiceStatus } from '@/lib/actions/billing'
+
+// ── Line categorisation based on description prefix ───────────────────────
+function lineType(description: string): 'fixed' | 'individual' | 'variable' | 'other' {
+  if (description === 'Cuota mensual fija') return 'fixed'
+  if (description.startsWith('Sesión individual')) return 'individual'
+  if (description.startsWith('Sesión grupal')) return 'variable'
+  return 'other'
+}
+
+// ── Section renderer ───────────────────────────────────────────────────────
+function InvoiceSection({
+  title,
+  lines,
+}: {
+  title: string
+  lines: any[]
+}) {
+  if (lines.length === 0) return null
+  const subtotal = lines.reduce((s: number, l: any) => s + l.amount, 0)
+
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide pt-2">{title}</p>
+      <table className="w-full">
+        <tbody>
+          {lines.map((line: any) => (
+            <tr key={line.id} className="border-b border-slate-700/40">
+              <td className="py-2.5 text-sm text-slate-300 w-28">{formatDate(line.date)}</td>
+              <td className="py-2.5 text-sm text-slate-200 pr-4">{line.description}</td>
+              {line.attendees != null ? (
+                <td className="py-2.5 text-xs text-slate-500 text-center w-24 hidden sm:table-cell">
+                  {line.attendees} asist.
+                </td>
+              ) : (
+                <td className="hidden sm:table-cell" />
+              )}
+              <td className="py-2.5 text-sm text-right text-slate-100 font-medium w-24">
+                {formatCurrency(line.amount)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex justify-end pt-1 pb-2">
+        <span className="text-xs text-slate-400">
+          Subtotal {title}: <span className="font-semibold text-slate-200">{formatCurrency(subtotal)}</span>
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 
 export function InvoiceDetail({ invoice }: { invoice: any }) {
   const router = useRouter()
@@ -21,7 +80,9 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
     setUpdating(true)
     try {
       await updateInvoiceStatus(invoice.id, status)
-      toast.success(status === 'paid' ? 'Factura marcada como pagada' : 'Factura marcada como enviada')
+      toast.success(
+        status === 'paid' ? 'Factura marcada como pagada' : 'Factura marcada como enviada'
+      )
       router.refresh()
     } catch {
       toast.error('Error al actualizar el estado')
@@ -30,13 +91,19 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
     }
   }
 
-  const handlePrint = () => {
-    window.print()
-  }
+  // ── Group invoice lines by type ──────────────────────────────────────────
+  const allLines: any[] = invoice.invoice_lines || []
+  const fixedLines = allLines.filter((l) => lineType(l.description) === 'fixed')
+  const individualLines = allLines.filter((l) => lineType(l.description) === 'individual')
+  const variableLines = allLines.filter((l) => lineType(l.description) === 'variable')
+  const otherLines = allLines.filter((l) => lineType(l.description) === 'other')
+
+  const hasMultipleSections =
+    [fixedLines, individualLines, variableLines, otherLines].filter((g) => g.length > 0).length > 1
 
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* Header */}
+      {/* ── Action header ── */}
       <div className="flex items-center gap-4 no-print">
         <Link href="/billing">
           <Button variant="ghost" size="icon">
@@ -57,31 +124,42 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={handlePrint}>
+          <Button variant="outline" onClick={() => window.print()}>
             <Download className="h-4 w-4" />
             Imprimir / PDF
           </Button>
           {invoice.status === 'draft' && (
-            <Button variant="secondary" onClick={() => handleStatusUpdate('sent')} disabled={updating}>
+            <Button
+              variant="secondary"
+              onClick={() => handleStatusUpdate('sent')}
+              disabled={updating}
+            >
               {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               Marcar enviada
             </Button>
           )}
           {invoice.status !== 'paid' && (
-            <Button variant="success" onClick={() => handleStatusUpdate('paid')} disabled={updating}>
-              {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+            <Button
+              variant="success"
+              onClick={() => handleStatusUpdate('paid')}
+              disabled={updating}
+            >
+              {updating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4" />
+              )}
               Marcar pagada
             </Button>
           )}
         </div>
       </div>
 
-      {/* Invoice Card */}
+      {/* ── Invoice card (printable) ── */}
       <Card id="invoice-print">
         <CardContent className="p-8 space-y-6">
-          {/* Header info */}
+          {/* Header: logo + invoice number */}
           <div className="flex justify-between items-start">
-            {/* Logo + brand */}
             <div className="flex items-center gap-3">
               <div className="relative h-14 w-14 shrink-0">
                 <Image
@@ -114,42 +192,65 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
 
           {/* Client info */}
           <div>
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Facturado a</p>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">
+              Facturado a
+            </p>
             <p className="text-slate-100 font-semibold">{invoice.clients?.name}</p>
-            {invoice.clients?.email && <p className="text-slate-400 text-sm">{invoice.clients.email}</p>}
-            {invoice.clients?.phone && <p className="text-slate-400 text-sm">{invoice.clients.phone}</p>}
+            {invoice.clients?.email && (
+              <p className="text-slate-400 text-sm">{invoice.clients.email}</p>
+            )}
+            {invoice.clients?.phone && (
+              <p className="text-slate-400 text-sm">{invoice.clients.phone}</p>
+            )}
           </div>
 
           <Separator />
 
-          {/* Lines */}
-          <div>
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left py-2 text-xs font-medium text-slate-400 uppercase">Fecha</th>
-                  <th className="text-left py-2 text-xs font-medium text-slate-400 uppercase">Descripción</th>
-                  <th className="text-center py-2 text-xs font-medium text-slate-400 uppercase hidden sm:table-cell">
-                    Asistentes
-                  </th>
-                  <th className="text-right py-2 text-xs font-medium text-slate-400 uppercase">Importe</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoice.invoice_lines?.map((line: any) => (
-                  <tr key={line.id} className="border-b border-slate-700/50">
-                    <td className="py-3 text-sm text-slate-300">{formatDate(line.date)}</td>
-                    <td className="py-3 text-sm text-slate-200">{line.description}</td>
-                    <td className="py-3 text-sm text-center text-slate-400 hidden sm:table-cell">
-                      {line.attendees || '—'}
-                    </td>
-                    <td className="py-3 text-sm text-right text-slate-100 font-medium">
-                      {formatCurrency(line.amount)}
-                    </td>
+          {/* ── Line items — grouped by type ── */}
+          <div className="space-y-2">
+            {hasMultipleSections ? (
+              // Multiple section mode
+              <>
+                <InvoiceSection title="Grupo Fijo" lines={fixedLines} />
+                {(fixedLines.length > 0 && (individualLines.length > 0 || variableLines.length > 0)) && (
+                  <Separator className="my-1" />
+                )}
+                <InvoiceSection title="Sesiones Individuales" lines={individualLines} />
+                {(individualLines.length > 0 && variableLines.length > 0) && (
+                  <Separator className="my-1" />
+                )}
+                <InvoiceSection title="Grupo Variable" lines={variableLines} />
+                <InvoiceSection title="Otros" lines={otherLines} />
+              </>
+            ) : (
+              // Single section — plain table without section header
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-700">
+                    <th className="text-left py-2 text-xs font-medium text-slate-400 uppercase">Fecha</th>
+                    <th className="text-left py-2 text-xs font-medium text-slate-400 uppercase">Descripción</th>
+                    <th className="text-center py-2 text-xs font-medium text-slate-400 uppercase hidden sm:table-cell">
+                      Asistentes
+                    </th>
+                    <th className="text-right py-2 text-xs font-medium text-slate-400 uppercase">Importe</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {allLines.map((line: any) => (
+                    <tr key={line.id} className="border-b border-slate-700/50">
+                      <td className="py-3 text-sm text-slate-300">{formatDate(line.date)}</td>
+                      <td className="py-3 text-sm text-slate-200">{line.description}</td>
+                      <td className="py-3 text-sm text-center text-slate-400 hidden sm:table-cell">
+                        {line.attendees ?? '—'}
+                      </td>
+                      <td className="py-3 text-sm text-right text-slate-100 font-medium">
+                        {formatCurrency(line.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <Separator />
@@ -168,7 +269,9 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
               <Separator className="my-2" />
               <div className="flex items-center gap-8 justify-between">
                 <span className="text-lg font-bold text-slate-100">TOTAL</span>
-                <span className="text-xl font-bold text-blue-400">{formatCurrency(invoice.total_amount)}</span>
+                <span className="text-xl font-bold text-blue-400">
+                  {formatCurrency(invoice.total_amount)}
+                </span>
               </div>
             </div>
           </div>
@@ -181,8 +284,7 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
           body * { visibility: hidden; }
           #invoice-print, #invoice-print * { visibility: visible; }
           #invoice-print {
-            position: absolute;
-            left: 0; top: 0;
+            position: absolute; left: 0; top: 0;
             width: 100%;
             background: white !important;
             color: black !important;
