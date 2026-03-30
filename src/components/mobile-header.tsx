@@ -1,6 +1,7 @@
 'use client'
 
-import { Menu, Dumbbell } from 'lucide-react'
+import Image from 'next/image'
+import { Menu } from 'lucide-react'
 import { useSidebar } from './sidebar-context'
 
 export function MobileHeader() {
@@ -17,8 +18,8 @@ export function MobileHeader() {
       </button>
 
       <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600">
-          <Dumbbell className="h-4 w-4 text-white" />
+        <div className="relative h-8 w-8">
+          <Image src="/logo.svg" alt="CCS Center" fill className="object-contain" priority />
         </div>
         <span className="text-sm font-bold text-slate-100">CCS Center</span>
       </div>

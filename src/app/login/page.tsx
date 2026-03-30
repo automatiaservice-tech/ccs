@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Dumbbell, Loader2 } from 'lucide-react'
+import Image from 'next/image'
+import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,10 +38,15 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 mb-4 shadow-lg shadow-blue-600/30">
-            <Dumbbell className="h-8 w-8 text-white" />
+          <div className="relative h-24 w-48 mb-2">
+            <Image
+              src="/logo.svg"
+              alt="CCS Center"
+              fill
+              className="object-contain"
+              priority
+            />
           </div>
-          <h1 className="text-2xl font-bold text-slate-100">CCS Center</h1>
           <p className="text-slate-400 text-sm mt-1">Panel de Administración</p>
         </div>
 

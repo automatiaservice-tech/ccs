@@ -1,8 +1,12 @@
 import { getSessions } from '@/lib/actions/sessions'
+import { getClients } from '@/lib/actions/clients'
 import { WeeklySchedule } from './weekly-schedule'
 
 export default async function SchedulePage() {
-  const sessions = await getSessions()
+  const [sessions, clients] = await Promise.all([
+    getSessions(),
+    getClients(),
+  ])
 
   return (
     <div className="space-y-6">
@@ -11,7 +15,7 @@ export default async function SchedulePage() {
         <p className="text-slate-400 text-sm mt-1">Vista semanal de sesiones</p>
       </div>
 
-      <WeeklySchedule initialSessions={sessions} />
+      <WeeklySchedule initialSessions={sessions} allClients={clients} />
     </div>
   )
 }

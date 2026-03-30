@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { toast } from 'sonner'
 import { ArrowLeft, Download, CheckCircle, Send, Loader2 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -36,7 +37,7 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 no-print">
         <Link href="/billing">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
@@ -80,9 +81,21 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
         <CardContent className="p-8 space-y-6">
           {/* Header info */}
           <div className="flex justify-between items-start">
-            <div>
-              <h2 className="text-2xl font-bold text-blue-400">CCS Center</h2>
-              <p className="text-slate-400 text-sm mt-1">Centro de entrenamiento personal</p>
+            {/* Logo + brand */}
+            <div className="flex items-center gap-3">
+              <div className="relative h-14 w-14 shrink-0">
+                <Image
+                  src="/logo.svg"
+                  alt="CCS Center"
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-blue-400">CCS Center</h2>
+                <p className="text-slate-400 text-sm">Centro de entrenamiento personal</p>
+              </div>
             </div>
             <div className="text-right">
               <p className="text-lg font-bold text-slate-100">
@@ -164,9 +177,21 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
 
       <style>{`
         @media print {
+          .no-print { display: none !important; }
           body * { visibility: hidden; }
           #invoice-print, #invoice-print * { visibility: visible; }
-          #invoice-print { position: absolute; left: 0; top: 0; width: 100%; background: white !important; color: black !important; }
+          #invoice-print {
+            position: absolute;
+            left: 0; top: 0;
+            width: 100%;
+            background: white !important;
+            color: black !important;
+          }
+          #invoice-print h2 { color: #1d4ed8 !important; }
+          #invoice-print p, #invoice-print td, #invoice-print th, #invoice-print span {
+            color: #374151 !important;
+          }
+          #invoice-print .text-blue-400 { color: #1d4ed8 !important; }
         }
       `}</style>
     </div>

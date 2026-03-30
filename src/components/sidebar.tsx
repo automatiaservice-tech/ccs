@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
@@ -11,7 +12,6 @@ import {
   BarChart3,
   MessageCircle,
   LogOut,
-  Dumbbell,
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -35,7 +35,30 @@ function useIsActive(href: string) {
   return pathname.startsWith(href)
 }
 
-// ── Full nav link (mobile + desktop) ──────────────────────────────────────
+// ── Logo component ─────────────────────────────────────────────────────────
+function BrandLogo({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 min-w-0">
+      <div className="relative h-9 w-9 shrink-0">
+        <Image
+          src="/logo.svg"
+          alt="CCS Center"
+          fill
+          className="object-contain"
+          priority
+        />
+      </div>
+      {!collapsed && (
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-slate-100 truncate">CCS Center</p>
+          <p className="text-xs text-slate-400">Gestión</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Full nav link (mobile + desktop) ────────────────────────────────────────
 function NavLink({ item, onClick }: { item: (typeof navItems)[0]; onClick?: () => void }) {
   const isActive = useIsActive(item.href)
   const Icon = item.icon
@@ -54,7 +77,7 @@ function NavLink({ item, onClick }: { item: (typeof navItems)[0]; onClick?: () =
   )
 }
 
-// ── Tablet nav link (icons + label hidden until hover) ─────────────────────
+// ── Tablet nav link (icons + label hidden until hover) ──────────────────────
 function TabletNavLink({ item }: { item: (typeof navItems)[0] }) {
   const isActive = useIsActive(item.href)
   const Icon = item.icon
@@ -88,7 +111,7 @@ export function Sidebar() {
 
   return (
     <>
-      {/* ── Mobile backdrop ─────────────────────────────────────────────── */}
+      {/* ── Mobile backdrop ──────────────────────────────────────────────── */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
@@ -96,7 +119,7 @@ export function Sidebar() {
         />
       )}
 
-      {/* ── Mobile slide-in sidebar (<768px) ────────────────────────────── */}
+      {/* ── Mobile slide-in sidebar (<768px) ─────────────────────────────── */}
       <aside
         className={cn(
           'fixed left-0 top-0 h-full w-72 bg-slate-900 border-r border-slate-700 flex flex-col z-50',
@@ -105,15 +128,7 @@ export function Sidebar() {
         )}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600">
-              <Dumbbell className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-100">CCS Center</p>
-              <p className="text-xs text-slate-400">Gestión</p>
-            </div>
-          </div>
+          <BrandLogo />
           <button
             onClick={() => setMobileOpen(false)}
             className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
@@ -139,14 +154,13 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* ── Tablet collapsed sidebar (768px–1024px) ─────────────────────── */}
-      {/* Expands on hover: w-16 → w-60 */}
+      {/* ── Tablet collapsed sidebar (768px–1024px) ──────────────────────── */}
       <aside className="hidden md:flex lg:hidden fixed left-0 top-0 h-full flex-col bg-slate-900 border-r border-slate-700 z-40 group w-16 hover:w-60 transition-all duration-200 overflow-hidden">
-        <div className="flex items-center gap-3 px-3 py-5 border-b border-slate-700">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600">
-            <Dumbbell className="h-5 w-5 text-white" />
+        <div className="flex items-center gap-3 px-3 py-5 border-b border-slate-700 min-w-[240px]">
+          <div className="relative h-9 w-9 shrink-0">
+            <Image src="/logo.svg" alt="CCS Center" fill className="object-contain" />
           </div>
-          <div className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
             <p className="text-sm font-bold text-slate-100">CCS Center</p>
             <p className="text-xs text-slate-400">Gestión</p>
           </div>
@@ -171,16 +185,10 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* ── Desktop full sidebar (1024px+) ──────────────────────────────── */}
+      {/* ── Desktop full sidebar (1024px+) ───────────────────────────────── */}
       <aside className="hidden lg:flex fixed left-0 top-0 h-full w-60 bg-slate-900 border-r border-slate-700 flex-col z-40">
         <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-700">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600">
-            <Dumbbell className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-100">CCS Center</p>
-            <p className="text-xs text-slate-400">Gestión</p>
-          </div>
+          <BrandLogo />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">

@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { ArrowLeft, Loader2, Save } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ArrowLeft, Loader2, Save, Receipt } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,15 +14,32 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
   formatCurrency,
   formatDate,
   getProfileTypeLabel,
   getProfileTypeBadgeColor,
   getStatusBadgeColor,
   getStatusLabel,
+  getMonthName,
 } from '@/lib/utils'
 import { updateClientAction, toggleClientActive } from '@/lib/actions/clients'
+import { generateClientInvoice } from '@/lib/actions/billing'
 import type { Client } from '@/lib/supabase/database.types'
+
+const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: getMonthName(i + 1) }))
+const YEARS = Array.from({ length: 5 }, (_, i) => {
+  const y = new Date().getFullYear() - i
+  return { value: String(y), label: String(y) }
+})
 
 interface ClientDetailProps {
   client: Client
@@ -32,6 +49,8 @@ interface ClientDetailProps {
 
 export function ClientDetail({ client, attendance, invoices }: ClientDetailProps) {
   const router = useRouter()
+  const now = new Date()
+
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [form, setForm] = useState({
@@ -41,6 +60,12 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
     monthly_fee: client.monthly_fee?.toString() || '',
     notes: client.notes || '',
   })
+
+  // Invoice generation modal
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [genMonth, setGenMonth] = useState(String(now.getMonth() + 1))
+  const [genYear, setGenYear] = useState(String(now.getFullYear()))
+  const [generating, setGenerating] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
@@ -74,6 +99,21 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
     }
   }
 
+  const handleGenerateInvoice = async () => {
+    setGenerating(true)
+    try {
+      const inv = await generateClientInvoice(client.id, parseInt(genMonth), parseInt(genYear))
+      toast.success(`Factura ${inv.invoice_number} generada`)
+      router.refresh()
+      setShowInvoiceModal(false)
+      router.push(`/billing/${inv.id}`)
+    } catch (err: any) {
+      toast.error(err.message || 'Error al generar la factura')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
@@ -84,7 +124,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
           </Button>
         </Link>
         <div className="flex-1">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-slate-100">{client.name}</h1>
             <Badge className={getProfileTypeBadgeColor(client.profile_type)}>
               {getProfileTypeLabel(client.profile_type)}
@@ -245,34 +285,42 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
 
         {/* Historial de facturas */}
         <TabsContent value="facturas">
-          <Card>
-            <CardContent className="p-0">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Período</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Total</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="text-center py-8 text-slate-400 text-sm">
-                        Sin facturas generadas
-                      </td>
+          <div className="space-y-3">
+            {/* Generate invoice button */}
+            <div className="flex justify-end">
+              <Button onClick={() => setShowInvoiceModal(true)} variant="outline" size="sm">
+                <Receipt className="h-4 w-4" />
+                Generar factura
+              </Button>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Período</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Nº Factura</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
+                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Total</th>
+                      <th className="px-4 py-3"></th>
                     </tr>
-                  ) : (
-                    invoices.map((inv) => {
-                      const monthNames = [
-                        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-                      ]
-                      return (
+                  </thead>
+                  <tbody>
+                    {invoices.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-8 text-slate-400 text-sm">
+                          Sin facturas generadas
+                        </td>
+                      </tr>
+                    ) : (
+                      invoices.map((inv) => (
                         <tr key={inv.id} className="border-b border-slate-700/50">
                           <td className="px-4 py-3 text-sm text-slate-300">
-                            {monthNames[inv.month - 1]} {inv.year}
+                            {getMonthName(inv.month)} {inv.year}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-400">
+                            {inv.invoice_number || '—'}
                           </td>
                           <td className="px-4 py-3">
                             <Badge className={getStatusBadgeColor(inv.status)}>
@@ -288,15 +336,65 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                             </Link>
                           </td>
                         </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
+
+      {/* Generate Invoice Modal */}
+      <Dialog open={showInvoiceModal} onOpenChange={(o) => !o && setShowInvoiceModal(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generar factura — {client.name}</DialogTitle>
+            <DialogDescription>
+              Se generará la factura del período seleccionado con las sesiones a las que asistió
+              {client.profile_type === 'fixed_group' ? ' (cuota mensual fija)' : ''}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <div className="space-y-1.5">
+              <Label>Mes</Label>
+              <Select value={genMonth} onValueChange={setGenMonth}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Año</Label>
+              <Select value={genYear} onValueChange={setGenYear}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEARS.map((y) => (
+                    <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowInvoiceModal(false)} disabled={generating}>
+              Cancelar
+            </Button>
+            <Button onClick={handleGenerateInvoice} disabled={generating}>
+              {generating && <Loader2 className="h-4 w-4 animate-spin" />}
+              Generar factura
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

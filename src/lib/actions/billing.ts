@@ -160,6 +160,117 @@ export async function updateInvoiceStatus(id: string, status: InvoiceStatus) {
   revalidatePath(`/billing/${id}`)
 }
 
+export async function generateClientInvoice(clientId: string, month: number, year: number) {
+  const supabase = await createClient()
+
+  const { data: client, error: clientError } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('id', clientId)
+    .single()
+
+  if (clientError) throw clientError
+  if (!client) throw new Error('Cliente no encontrado')
+
+  // Check if invoice already exists
+  const { data: existing } = await supabase
+    .from('invoices')
+    .select('id')
+    .eq('client_id', clientId)
+    .eq('month', month)
+    .eq('year', year)
+    .single()
+
+  if (existing) throw new Error(`Ya existe una factura para ${client.name} en ese período`)
+
+  let totalAmount = 0
+  const lines: { date: string; description: string; attendees: number | null; amount: number }[] = []
+
+  if (client.profile_type === 'fixed_group') {
+    totalAmount = client.monthly_fee || 0
+    lines.push({
+      date: `${year}-${String(month).padStart(2, '0')}-01`,
+      description: 'Cuota mensual fija',
+      attendees: null,
+      amount: totalAmount,
+    })
+  } else {
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`
+    const endDate = `${year}-${String(month).padStart(2, '0')}-31`
+
+    const { data: records, error: recError } = await supabase
+      .from('attendance_records')
+      .select('*, sessions(name, session_type)')
+      .eq('client_id', clientId)
+      .eq('attended', true)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date')
+
+    if (recError) throw recError
+
+    for (const record of records || []) {
+      if (record.cost_per_person > 0) {
+        totalAmount += record.cost_per_person
+
+        let attendeesCount: number | null = null
+        if (client.profile_type === 'variable_group') {
+          const { count } = await supabase
+            .from('attendance_records')
+            .select('id', { count: 'exact', head: true })
+            .eq('session_id', record.session_id)
+            .eq('date', record.date)
+            .eq('attended', true)
+          attendeesCount = count || null
+        }
+
+        lines.push({
+          date: record.date,
+          description: record.sessions?.name || 'Sesión',
+          attendees: attendeesCount,
+          amount: record.cost_per_person,
+        })
+      }
+    }
+  }
+
+  if (totalAmount === 0 && lines.length === 0) {
+    throw new Error('No hay sesiones facturables en este período')
+  }
+
+  const { count: invoiceCount } = await supabase
+    .from('invoices')
+    .select('id', { count: 'exact', head: true })
+
+  const invoiceNumber = `CCS-${year}-${String((invoiceCount || 0) + 1).padStart(3, '0')}`
+
+  const { data: invoice, error: invError } = await supabase
+    .from('invoices')
+    .insert({
+      client_id: clientId,
+      month,
+      year,
+      total_amount: totalAmount,
+      status: 'draft',
+      invoice_number: invoiceNumber,
+    })
+    .select()
+    .single()
+
+  if (invError) throw invError
+
+  if (lines.length > 0) {
+    const { error: linesError } = await supabase.from('invoice_lines').insert(
+      lines.map((l) => ({ ...l, invoice_id: invoice.id }))
+    )
+    if (linesError) throw linesError
+  }
+
+  revalidatePath('/billing')
+  revalidatePath(`/clients/${clientId}`)
+  return invoice
+}
+
 export async function deleteInvoice(id: string) {
   const supabase = await createClient()
   await supabase.from('invoice_lines').delete().eq('invoice_id', id)
