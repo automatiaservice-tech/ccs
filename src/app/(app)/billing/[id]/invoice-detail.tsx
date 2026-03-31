@@ -40,21 +40,21 @@ function InvoiceSection({
 
   return (
     <div className="space-y-1">
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide pt-2">{title}</p>
+      <p className="text-xs font-semibold text-[#64748B] uppercase tracking-wide pt-2">{title}</p>
       <table className="w-full">
         <tbody>
           {lines.map((line: any) => (
-            <tr key={line.id} className="border-b border-slate-700/40">
-              <td className="py-2.5 text-sm text-slate-300 w-28">{formatDate(line.date)}</td>
-              <td className="py-2.5 text-sm text-slate-200 pr-4">{line.description}</td>
+            <tr key={line.id} className="border-b border-[#F1F5F9]">
+              <td className="py-2.5 text-sm text-slate-600 w-28">{formatDate(line.date)}</td>
+              <td className="py-2.5 text-sm text-slate-700 pr-4">{line.description}</td>
               {line.attendees != null ? (
-                <td className="py-2.5 text-xs text-slate-500 text-center w-24 hidden sm:table-cell">
+                <td className="py-2.5 text-xs text-[#64748B] text-center w-24 hidden sm:table-cell">
                   {line.attendees} asist.
                 </td>
               ) : (
                 <td className="hidden sm:table-cell" />
               )}
-              <td className="py-2.5 text-sm text-right text-slate-100 font-medium w-24">
+              <td className="py-2.5 text-sm text-right text-[#0F172A] font-medium w-24">
                 {formatCurrency(line.amount)}
               </td>
             </tr>
@@ -62,8 +62,8 @@ function InvoiceSection({
         </tbody>
       </table>
       <div className="flex justify-end pt-1 pb-2">
-        <span className="text-xs text-slate-400">
-          Subtotal {title}: <span className="font-semibold text-slate-200">{formatCurrency(subtotal)}</span>
+        <span className="text-xs text-[#64748B]">
+          Subtotal {title}: <span className="font-semibold text-slate-700">{formatCurrency(subtotal)}</span>
         </span>
       </div>
     </div>
@@ -112,14 +112,14 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-100">
+            <h1 className="text-2xl font-bold text-[#0F172A]">
               {invoice.invoice_number || `Factura ${invoice.id.substring(0, 8)}`}
             </h1>
             <Badge className={getStatusBadgeColor(invoice.status)}>
               {getStatusLabel(invoice.status)}
             </Badge>
           </div>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-[#64748B] text-sm mt-1">
             {invoice.clients?.name} · {getMonthName(invoice.month)} {invoice.year}
           </p>
         </div>
@@ -171,18 +171,18 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
                 />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-blue-400">CCS Center</h2>
-                <p className="text-slate-400 text-sm">Centro de entrenamiento personal</p>
+                <h2 className="text-xl font-bold text-[#2563EB]">CCS Center</h2>
+                <p className="text-[#64748B] text-sm">Centro de entrenamiento personal</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-slate-100">
+              <p className="text-lg font-bold text-[#0F172A]">
                 {invoice.invoice_number || 'FACTURA'}
               </p>
-              <p className="text-slate-400 text-sm">
+              <p className="text-[#64748B] text-sm">
                 {getMonthName(invoice.month)} {invoice.year}
               </p>
-              <p className="text-slate-400 text-xs mt-1">
+              <p className="text-[#64748B] text-xs mt-1">
                 Emitida: {formatDate(invoice.created_at)}
               </p>
             </div>
@@ -192,15 +192,15 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
 
           {/* Client info */}
           <div>
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">
+            <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide mb-2">
               Facturado a
             </p>
-            <p className="text-slate-100 font-semibold">{invoice.clients?.name}</p>
+            <p className="text-[#0F172A] font-semibold">{invoice.clients?.name}</p>
             {invoice.clients?.email && (
-              <p className="text-slate-400 text-sm">{invoice.clients.email}</p>
+              <p className="text-[#64748B] text-sm">{invoice.clients.email}</p>
             )}
             {invoice.clients?.phone && (
-              <p className="text-slate-400 text-sm">{invoice.clients.phone}</p>
+              <p className="text-[#64748B] text-sm">{invoice.clients.phone}</p>
             )}
           </div>
 
@@ -226,24 +226,24 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
               // Single section — plain table without section header
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="text-left py-2 text-xs font-medium text-slate-400 uppercase">Fecha</th>
-                    <th className="text-left py-2 text-xs font-medium text-slate-400 uppercase">Descripción</th>
-                    <th className="text-center py-2 text-xs font-medium text-slate-400 uppercase hidden sm:table-cell">
+                  <tr className="border-b border-[#E2E8F0]">
+                    <th className="text-left py-2 text-xs font-medium text-[#64748B] uppercase">Fecha</th>
+                    <th className="text-left py-2 text-xs font-medium text-[#64748B] uppercase">Descripción</th>
+                    <th className="text-center py-2 text-xs font-medium text-[#64748B] uppercase hidden sm:table-cell">
                       Asistentes
                     </th>
-                    <th className="text-right py-2 text-xs font-medium text-slate-400 uppercase">Importe</th>
+                    <th className="text-right py-2 text-xs font-medium text-[#64748B] uppercase">Importe</th>
                   </tr>
                 </thead>
                 <tbody>
                   {allLines.map((line: any) => (
-                    <tr key={line.id} className="border-b border-slate-700/50">
-                      <td className="py-3 text-sm text-slate-300">{formatDate(line.date)}</td>
-                      <td className="py-3 text-sm text-slate-200">{line.description}</td>
-                      <td className="py-3 text-sm text-center text-slate-400 hidden sm:table-cell">
+                    <tr key={line.id} className="border-b border-[#F1F5F9]">
+                      <td className="py-3 text-sm text-slate-600">{formatDate(line.date)}</td>
+                      <td className="py-3 text-sm text-slate-700">{line.description}</td>
+                      <td className="py-3 text-sm text-center text-[#64748B] hidden sm:table-cell">
                         {line.attendees ?? '—'}
                       </td>
-                      <td className="py-3 text-sm text-right text-slate-100 font-medium">
+                      <td className="py-3 text-sm text-right text-[#0F172A] font-medium">
                         {formatCurrency(line.amount)}
                       </td>
                     </tr>
@@ -259,17 +259,17 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
           <div className="flex justify-end">
             <div className="text-right space-y-2">
               <div className="flex items-center gap-8 justify-between">
-                <span className="text-slate-400 text-sm">Base imponible</span>
-                <span className="text-slate-200 text-sm">{formatCurrency(invoice.total_amount)}</span>
+                <span className="text-[#64748B] text-sm">Base imponible</span>
+                <span className="text-slate-700 text-sm">{formatCurrency(invoice.total_amount)}</span>
               </div>
               <div className="flex items-center gap-8 justify-between">
-                <span className="text-slate-400 text-sm">IVA (0%)</span>
-                <span className="text-slate-200 text-sm">{formatCurrency(0)}</span>
+                <span className="text-[#64748B] text-sm">IVA (0%)</span>
+                <span className="text-slate-700 text-sm">{formatCurrency(0)}</span>
               </div>
               <Separator className="my-2" />
               <div className="flex items-center gap-8 justify-between">
-                <span className="text-lg font-bold text-slate-100">TOTAL</span>
-                <span className="text-xl font-bold text-blue-400">
+                <span className="text-lg font-bold text-[#0F172A]">TOTAL</span>
+                <span className="text-xl font-bold text-[#2563EB]">
                   {formatCurrency(invoice.total_amount)}
                 </span>
               </div>
@@ -293,7 +293,7 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
           #invoice-print p, #invoice-print td, #invoice-print th, #invoice-print span {
             color: #374151 !important;
           }
-          #invoice-print .text-blue-400 { color: #1d4ed8 !important; }
+          #invoice-print .text-\\[\\#2563EB\\] { color: #1d4ed8 !important; }
         }
       `}</style>
     </div>

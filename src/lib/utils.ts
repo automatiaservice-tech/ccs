@@ -45,20 +45,20 @@ export function getProfileTypeLabel(type: string): string {
 
 export function getProfileTypeBadgeColor(type: string): string {
   const colors: Record<string, string> = {
-    fixed_group: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    variable_group: 'bg-green-500/20 text-green-400 border-green-500/30',
-    individual: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    fixed_group: 'bg-blue-50 text-blue-600 border-blue-200',
+    variable_group: 'bg-green-50 text-green-600 border-green-200',
+    individual: 'bg-orange-50 text-orange-600 border-orange-200',
   }
-  return colors[type] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+  return colors[type] || 'bg-gray-50 text-gray-500 border-gray-200'
 }
 
 export function getStatusBadgeColor(status: string): string {
   const colors: Record<string, string> = {
-    draft: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-    sent: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    paid: 'bg-green-500/20 text-green-400 border-green-500/30',
+    draft: 'bg-gray-50 text-gray-500 border-gray-200',
+    sent: 'bg-blue-50 text-blue-600 border-blue-200',
+    paid: 'bg-green-50 text-green-600 border-green-200',
   }
-  return colors[status] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+  return colors[status] || 'bg-gray-50 text-gray-500 border-gray-200'
 }
 
 export function getStatusLabel(status: string): string {

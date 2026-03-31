@@ -116,7 +116,7 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
-          <p className="text-slate-400">No hay sesiones programadas para hoy</p>
+          <p className="text-[#64748B]">No hay sesiones programadas para hoy</p>
         </CardContent>
       </Card>
     )
@@ -126,7 +126,7 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
     <div className="space-y-4">
       {/* Session selector */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-200">Selecciona la sesión</label>
+        <label className="text-sm font-medium text-slate-700">Selecciona la sesión</label>
         <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
           <SelectTrigger className="max-w-md">
             <SelectValue placeholder="Elige una sesión de hoy..." />
@@ -148,22 +148,22 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>{selectedSession.name}</CardTitle>
-                <p className="text-sm text-slate-400 mt-1">
+                <p className="text-sm text-[#64748B] mt-1">
                   {activeClients.length} clientes — {attendeesCount} asistentes
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 {hasExisting && (
-                  <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 gap-1">
+                  <Badge className="bg-yellow-50 text-yellow-600 border-yellow-200 gap-1">
                     <AlertCircle className="h-3 w-3" />
                     Ya registrada
                   </Badge>
                 )}
-                {loadingExisting && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+                {loadingExisting && <Loader2 className="h-4 w-4 animate-spin text-[#64748B]" />}
               </div>
             </div>
             {hasExisting && (
-              <p className="text-xs text-yellow-400 mt-1">
+              <p className="text-xs text-yellow-600 mt-1">
                 Ya existe un registro para esta sesión hoy. Al guardar se sobreescribirá.
               </p>
             )}
@@ -171,13 +171,13 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
 
           <CardContent className="space-y-2">
             {activeClients.length === 0 ? (
-              <p className="text-center py-6 text-slate-400 text-sm">
+              <p className="text-center py-6 text-[#64748B] text-sm">
                 No hay clientes asignados a esta sesión
               </p>
             ) : (
               <>
                 {/* Select all + variable cost indicator */}
-                <div className="flex items-center justify-between pb-2 border-b border-slate-700">
+                <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0]">
                   <button
                     onClick={() => {
                       const allAttended = activeClients.every((c) => attendance[c.id])
@@ -187,7 +187,7 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
                       })
                       setAttendance(newVal)
                     }}
-                    className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                    className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
                   >
                     <CheckSquare className="h-3.5 w-3.5" />
                     {activeClients.every((c) => attendance[c.id])
@@ -195,7 +195,7 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
                       : 'Marcar todos'}
                   </button>
                   {hasVariableClients && attendeesCount > 0 && (
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-[#64748B]">
                       Variable: {formatCurrency(SESSION_PRICE / attendeesCount)} / persona
                     </span>
                   )}
@@ -204,7 +204,7 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
                 {activeClients.map((client) => (
                   <div
                     key={client.id}
-                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-slate-700/50 transition-colors"
+                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-slate-50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <Checkbox
@@ -218,7 +218,7 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
                         }
                       />
                       <label htmlFor={client.id} className="cursor-pointer">
-                        <p className="text-sm font-medium text-slate-100">{client.name}</p>
+                        <p className="text-sm font-medium text-[#0F172A]">{client.name}</p>
                         <Badge
                           className={`mt-0.5 text-[10px] ${getProfileTypeBadgeColor(client.profile_type)}`}
                         >
@@ -226,7 +226,7 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
                         </Badge>
                       </label>
                     </div>
-                    <span className="text-sm font-medium text-slate-300">
+                    <span className="text-sm font-medium text-slate-600">
                       {attendance[client.id] ? costPreview(client, attendeesCount) : '—'}
                     </span>
                   </div>

@@ -10,9 +10,9 @@ interface DonutChartProps {
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-700 border border-slate-600 rounded-lg p-2.5 shadow-xl">
-        <p className="text-slate-300 text-xs font-medium">{payload[0].name}</p>
-        <p className="text-slate-100 text-sm font-bold">{formatCurrency(payload[0].value)}</p>
+      <div className="bg-white border border-[#E2E8F0] rounded-lg p-2.5 shadow-md">
+        <p className="text-slate-600 text-xs font-medium">{payload[0].name}</p>
+        <p className="text-[#0F172A] text-sm font-bold">{formatCurrency(payload[0].value)}</p>
       </div>
     )
   }

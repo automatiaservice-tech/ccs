@@ -135,16 +135,16 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
           {/* Color legend */}
           <div className="flex gap-4 text-xs flex-wrap">
             <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded-sm bg-blue-400" />
-              <span className="text-slate-400">Grupo Fijo</span>
+              <div className="h-3 w-3 rounded-sm bg-blue-500" />
+              <span className="text-[#64748B]">Grupo Fijo</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded-sm bg-green-400" />
-              <span className="text-slate-400">Grupo Variable</span>
+              <div className="h-3 w-3 rounded-sm bg-green-500" />
+              <span className="text-[#64748B]">Grupo Variable</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded-sm bg-orange-400" />
-              <span className="text-slate-400">Individual</span>
+              <div className="h-3 w-3 rounded-sm bg-orange-500" />
+              <span className="text-[#64748B]">Individual</span>
             </div>
           </div>
         </div>
@@ -152,7 +152,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
         {/* ── Mobile: card list ── */}
         <div className="sm:hidden space-y-2">
           {filtered.length === 0 ? (
-            <p className="text-center py-10 text-slate-400 text-sm">No se encontraron clientes</p>
+            <p className="text-center py-10 text-[#64748B] text-sm">No se encontraron clientes</p>
           ) : (
             filtered.map((client) => (
               <button
@@ -201,7 +201,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
         </div>
 
         {/* ── Tablet/Desktop: table ── */}
-        <div className="hidden sm:block rounded-xl border border-slate-700 bg-white overflow-hidden">
+        <div className="hidden sm:block rounded-xl border border-[#E2E8F0] bg-white overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -266,7 +266,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
           </div>
         </div>
 
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-[#64748B]">
           Mostrando {filtered.length} de {initialClients.length} clientes
         </p>
       </div>

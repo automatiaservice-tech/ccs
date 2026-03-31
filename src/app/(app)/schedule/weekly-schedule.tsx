@@ -28,15 +28,15 @@ import {
 const DAYS = [0, 1, 2, 3, 4, 5, 6]
 
 const SESSION_TYPE_COLORS: Record<string, string> = {
-  fixed_group: 'border-l-blue-500 bg-blue-500/10 hover:bg-blue-500/20',
-  variable_group: 'border-l-green-500 bg-green-500/10 hover:bg-green-500/20',
-  individual: 'border-l-orange-500 bg-orange-500/10 hover:bg-orange-500/20',
+  fixed_group: 'border-l-blue-500 bg-blue-50 hover:bg-blue-100',
+  variable_group: 'border-l-green-500 bg-green-50 hover:bg-green-100',
+  individual: 'border-l-orange-500 bg-orange-50 hover:bg-orange-100',
 }
 
 const SESSION_TYPE_BADGE: Record<string, string> = {
-  fixed_group: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  variable_group: 'bg-green-500/20 text-green-400 border-green-500/30',
-  individual: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  fixed_group: 'bg-blue-50 text-blue-600 border-blue-200',
+  variable_group: 'bg-green-50 text-green-600 border-green-200',
+  individual: 'bg-orange-50 text-orange-600 border-orange-200',
 }
 
 const SESSION_TYPE_LABELS: Record<string, string> = {
@@ -222,17 +222,17 @@ export function WeeklySchedule({
       <div className="flex gap-4 text-xs flex-wrap">
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded bg-blue-500" />
-          <span className="text-slate-400">Grupo Fijo</span>
+          <span className="text-[#64748B]">Grupo Fijo</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded bg-green-500" />
-          <span className="text-slate-400">Grupo Variable</span>
+          <span className="text-[#64748B]">Grupo Variable</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded bg-orange-500" />
-          <span className="text-slate-400">Individual</span>
+          <span className="text-[#64748B]">Individual</span>
         </div>
-        <span className="text-slate-600 text-[10px] self-center">· Toca una sesión para ver participantes</span>
+        <span className="text-slate-400 text-[10px] self-center">· Toca una sesión para ver participantes</span>
       </div>
 
       {/* Weekly Grid — horizontal scroll on mobile */}
@@ -245,12 +245,12 @@ export function WeeklySchedule({
 
             return (
               <div key={day} className="space-y-2">
-                <h3 className="text-xs font-semibold text-slate-400 text-center uppercase tracking-wide py-2 border-b border-slate-700">
+                <h3 className="text-xs font-semibold text-[#64748B] text-center uppercase tracking-wide py-2 border-b border-[#E2E8F0]">
                   {getDayName(day).substring(0, 3)}
                 </h3>
                 <div className="space-y-2 min-h-24">
                   {daySessions.length === 0 ? (
-                    <p className="text-center text-slate-600 text-xs py-4">—</p>
+                    <p className="text-center text-slate-400 text-xs py-4">—</p>
                   ) : (
                     daySessions.map((s) => {
                       const clientCount = s.session_clients?.length || 0
@@ -259,20 +259,20 @@ export function WeeklySchedule({
                           key={s.id}
                           onClick={() => openDetail(s)}
                           className={cn(
-                            'w-full text-left rounded-lg border-l-4 p-2.5 border border-slate-700 cursor-pointer transition-all active:scale-95',
+                            'w-full text-left rounded-lg border-l-4 p-2.5 border border-[#E2E8F0] cursor-pointer transition-all active:scale-95',
                             SESSION_TYPE_COLORS[s.session_type]
                           )}
                         >
-                          <p className="text-xs font-semibold text-slate-100 leading-tight break-words hyphens-auto">
+                          <p className="text-xs font-semibold text-slate-900 leading-tight break-words hyphens-auto">
                             {s.name}
                           </p>
-                          <p className="text-xs text-slate-400 mt-1">{s.time.substring(0, 5)}</p>
+                          <p className="text-xs text-[#64748B] mt-1">{s.time.substring(0, 5)}</p>
                           <div className="flex items-center gap-1 mt-1.5">
                             <Badge className={cn('text-[10px] px-1.5 py-0', SESSION_TYPE_BADGE[s.session_type])}>
                               {SESSION_TYPE_LABELS[s.session_type]}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-1 mt-2 text-slate-400">
+                          <div className="flex items-center gap-1 mt-2 text-[#64748B]">
                             <Users className="h-3 w-3" />
                             <span className="text-[10px]">{clientCount}</span>
                           </div>
@@ -297,7 +297,7 @@ export function WeeklySchedule({
                   <span className={cn('h-3 w-3 rounded-full shrink-0', TYPE_DOT[detailSession.session_type])} />
                   <span className="truncate">{detailSession.name}</span>
                 </DialogTitle>
-                <p className="text-slate-400 text-sm">
+                <p className="text-[#64748B] text-sm">
                   {getDayName(detailSession.day_of_week)} · {detailSession.time.substring(0, 5)} ·{' '}
                   {SESSION_TYPE_LABELS[detailSession.session_type]}
                   {detailSession.max_capacity ? ` · Máx. ${detailSession.max_capacity}` : ''}
@@ -319,24 +319,24 @@ export function WeeklySchedule({
                   {/* Assigned clients */}
                   {currentParticipants.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                      <p className="text-xs font-semibold text-[#64748B] uppercase tracking-wide mb-2">
                         Asignados ({currentParticipants.length})
                       </p>
                       <div className="space-y-1 max-h-48 overflow-y-auto">
                         {currentParticipants.map((client) => (
                           <div
                             key={client.id}
-                            className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2"
+                            className="flex items-center justify-between rounded-lg border border-[#E2E8F0] bg-slate-50 px-3 py-2"
                           >
                             <div className="min-w-0">
-                              <p className="text-sm text-slate-200 truncate">{client.name}</p>
-                              <p className="text-[10px] text-slate-500">
+                              <p className="text-sm text-slate-800 truncate">{client.name}</p>
+                              <p className="text-[10px] text-slate-400">
                                 {SESSION_TYPE_LABELS[client.profile_type] || client.profile_type}
                               </p>
                             </div>
                             <button
                               onClick={() => toggleParticipant(client.id)}
-                              className="ml-3 shrink-0 p-1 text-red-400 hover:text-red-300 transition-colors"
+                              className="ml-3 shrink-0 p-1 text-red-400 hover:text-red-600 transition-colors"
                               title="Quitar de sesión"
                             >
                               <UserMinus className="h-4 w-4" />
@@ -349,11 +349,11 @@ export function WeeklySchedule({
 
                   {/* Add clients */}
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                    <p className="text-xs font-semibold text-[#64748B] uppercase tracking-wide mb-2">
                       Añadir cliente
                     </p>
                     <div className="relative mb-2">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
                       <Input
                         value={participantSearch}
                         onChange={(e) => setParticipantSearch(e.target.value)}
@@ -361,9 +361,9 @@ export function WeeklySchedule({
                         className="pl-9"
                       />
                     </div>
-                    <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-700">
+                    <div className="max-h-44 overflow-y-auto rounded-lg border border-[#E2E8F0]">
                       {availableClients.length === 0 ? (
-                        <p className="text-sm text-slate-500 text-center py-4">
+                        <p className="text-sm text-slate-400 text-center py-4">
                           {participantSearch
                             ? 'Sin resultados'
                             : 'Todos los clientes ya están asignados'}
@@ -373,15 +373,15 @@ export function WeeklySchedule({
                           <button
                             key={client.id}
                             onClick={() => toggleParticipant(client.id)}
-                            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 last:border-0"
+                            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-50 transition-colors border-b border-[#F1F5F9] last:border-0"
                           >
                             <div className="min-w-0">
-                              <p className="text-sm text-slate-200 truncate">{client.name}</p>
-                              <p className="text-[10px] text-slate-500">
+                              <p className="text-sm text-slate-800 truncate">{client.name}</p>
+                              <p className="text-[10px] text-slate-400">
                                 {SESSION_TYPE_LABELS[client.profile_type] || client.profile_type}
                               </p>
                             </div>
-                            <UserPlus className="h-4 w-4 text-blue-400 shrink-0 ml-2" />
+                            <UserPlus className="h-4 w-4 text-blue-500 shrink-0 ml-2" />
                           </button>
                         ))
                       )}
@@ -402,27 +402,27 @@ export function WeeklySchedule({
                 {/* ── Details tab ───────────────────────────────────── */}
                 <TabsContent value="detalles" className="mt-3 space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="rounded-lg bg-slate-800/60 border border-slate-700 p-3">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wide">Tipo</p>
-                      <p className="text-slate-200 font-medium mt-0.5">
+                    <div className="rounded-lg bg-slate-50 border border-[#E2E8F0] p-3">
+                      <p className="text-[10px] text-[#64748B] uppercase tracking-wide">Tipo</p>
+                      <p className="text-slate-800 font-medium mt-0.5">
                         {SESSION_TYPE_LABELS[detailSession.session_type]}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-slate-800/60 border border-slate-700 p-3">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wide">Capacidad</p>
-                      <p className="text-slate-200 font-medium mt-0.5">
+                    <div className="rounded-lg bg-slate-50 border border-[#E2E8F0] p-3">
+                      <p className="text-[10px] text-[#64748B] uppercase tracking-wide">Capacidad</p>
+                      <p className="text-slate-800 font-medium mt-0.5">
                         {detailSession.max_capacity ? `${detailSession.max_capacity} personas` : 'Sin límite'}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-slate-800/60 border border-slate-700 p-3">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wide">Día</p>
-                      <p className="text-slate-200 font-medium mt-0.5">
+                    <div className="rounded-lg bg-slate-50 border border-[#E2E8F0] p-3">
+                      <p className="text-[10px] text-[#64748B] uppercase tracking-wide">Día</p>
+                      <p className="text-slate-800 font-medium mt-0.5">
                         {getDayName(detailSession.day_of_week)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-slate-800/60 border border-slate-700 p-3">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wide">Hora</p>
-                      <p className="text-slate-200 font-medium mt-0.5">
+                    <div className="rounded-lg bg-slate-50 border border-[#E2E8F0] p-3">
+                      <p className="text-[10px] text-[#64748B] uppercase tracking-wide">Hora</p>
+                      <p className="text-slate-800 font-medium mt-0.5">
                         {detailSession.time.substring(0, 5)}
                       </p>
                     </div>

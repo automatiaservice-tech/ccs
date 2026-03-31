@@ -22,9 +22,9 @@ import { createClientAction } from '@/lib/actions/clients'
 import { getSessions } from '@/lib/actions/sessions'
 
 const SESSION_TYPE_BADGE: Record<string, string> = {
-  fixed_group: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  variable_group: 'bg-green-500/20 text-green-400 border-green-500/30',
-  individual: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  fixed_group: 'bg-blue-50 text-blue-600 border-blue-200',
+  variable_group: 'bg-green-50 text-green-600 border-green-200',
+  individual: 'bg-orange-50 text-orange-600 border-orange-200',
 }
 
 const SESSION_TYPE_LABELS: Record<string, string> = {
@@ -229,14 +229,14 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                   Asignar a sesiones
                 </Label>
                 {frequencyText && (
-                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <span className="text-xs text-[#64748B] flex items-center gap-1">
                     <Users className="h-3 w-3" />
                     {frequencyText}
                   </span>
                 )}
               </div>
 
-              <div className="rounded-lg border border-slate-600 divide-y divide-slate-700/50 max-h-52 overflow-y-auto">
+              <div className="rounded-lg border border-[#E2E8F0] divide-y divide-[#F1F5F9] max-h-52 overflow-y-auto">
                 {Object.keys(sessionsByDay).sort((a, b) => Number(a) - Number(b)).map((dayStr) => {
                   const day = parseInt(dayStr)
                   const daySessions = sessionsByDay[day].sort((a: any, b: any) =>
@@ -244,7 +244,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                   )
                   return (
                     <div key={day} className="px-2 py-1.5">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                      <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wide mb-1">
                         {DAYS_SHORT[day]}
                       </p>
                       <div className="space-y-1">
@@ -255,7 +255,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                               key={s.id}
                               className={cn(
                                 'flex items-center gap-2.5 cursor-pointer p-1.5 rounded-md transition-colors',
-                                isSelected ? 'bg-blue-500/10' : 'hover:bg-slate-700/40'
+                                isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
                               )}
                             >
                               <input
@@ -265,8 +265,8 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                                 className="rounded border-slate-500 text-blue-600 h-4 w-4"
                               />
                               <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <span className="text-sm text-slate-200 truncate">{s.name}</span>
-                                <span className="text-xs text-slate-400 shrink-0">
+                                <span className="text-sm text-slate-800 truncate">{s.name}</span>
+                                <span className="text-xs text-[#64748B] shrink-0">
                                   {s.time?.substring(0, 5)}
                                 </span>
                                 <Badge
@@ -288,7 +288,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
               </div>
 
               {formData.session_ids.length > 0 && (
-                <p className="text-xs text-blue-400">
+                <p className="text-xs text-blue-600">
                   ✓ {formData.session_ids.length} sesión{formData.session_ids.length > 1 ? 'es' : ''} seleccionada{formData.session_ids.length > 1 ? 's' : ''}
                 </p>
               )}

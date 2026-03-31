@@ -125,28 +125,28 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-100">{client.name}</h1>
+            <h1 className="text-2xl font-bold text-[#0F172A]">{client.name}</h1>
             <Badge className={getProfileTypeBadgeColor(client.profile_type)}>
               {getProfileTypeLabel(client.profile_type)}
             </Badge>
             <Badge
               className={
                 client.active
-                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                  : 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+                  ? 'bg-green-50 text-green-600 border-green-200'
+                  : 'bg-slate-100 text-slate-500 border-slate-200'
               }
             >
               {client.active ? 'Activo' : 'Inactivo'}
             </Badge>
           </div>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-[#64748B] text-sm mt-1">
             Cliente desde {formatDate(client.created_at)}
           </p>
         </div>
 
         {/* Active toggle */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">{client.active ? 'Activo' : 'Inactivo'}</span>
+          <span className="text-xs text-[#64748B]">{client.active ? 'Activo' : 'Inactivo'}</span>
           <Switch
             checked={client.active}
             onCheckedChange={handleToggleActive}
@@ -241,37 +241,37 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
             <CardContent className="p-0">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Fecha</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Sesión</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Asistencia</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Coste</th>
+                  <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                    <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Fecha</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Sesión</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Asistencia</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Coste</th>
                   </tr>
                 </thead>
                 <tbody>
                   {attendance.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="text-center py-8 text-slate-400 text-sm">
+                      <td colSpan={4} className="text-center py-8 text-[#64748B] text-sm">
                         Sin registros de asistencia
                       </td>
                     </tr>
                   ) : (
                     attendance.map((record) => (
-                      <tr key={record.id} className="border-b border-slate-700/50">
-                        <td className="px-4 py-3 text-sm text-slate-300">{formatDate(record.date)}</td>
-                        <td className="px-4 py-3 text-sm text-slate-300">{record.sessions?.name || '—'}</td>
+                      <tr key={record.id} className="border-b border-[#F1F5F9]">
+                        <td className="px-4 py-3 text-sm text-slate-600">{formatDate(record.date)}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{record.sessions?.name || '—'}</td>
                         <td className="px-4 py-3">
                           <Badge
                             className={
                               record.attended
-                                ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                                : 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+                                ? 'bg-green-50 text-green-600 border-green-200'
+                                : 'bg-slate-100 text-slate-500 border-slate-200'
                             }
                           >
                             {record.attended ? 'Asistió' : 'Faltó'}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-sm text-right text-slate-300">
+                        <td className="px-4 py-3 text-sm text-right text-slate-600">
                           {record.attended ? formatCurrency(record.cost_per_person) : '—'}
                         </td>
                       </tr>
@@ -298,28 +298,28 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
               <CardContent className="p-0">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-slate-700">
-                      <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Período</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Nº Factura</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
-                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Total</th>
+                    <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                      <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Período</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Nº Factura</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Estado</th>
+                      <th className="text-right px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Total</th>
                       <th className="px-4 py-3"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {invoices.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="text-center py-8 text-slate-400 text-sm">
+                        <td colSpan={5} className="text-center py-8 text-[#64748B] text-sm">
                           Sin facturas generadas
                         </td>
                       </tr>
                     ) : (
                       invoices.map((inv) => (
-                        <tr key={inv.id} className="border-b border-slate-700/50">
-                          <td className="px-4 py-3 text-sm text-slate-300">
+                        <tr key={inv.id} className="border-b border-[#F1F5F9]">
+                          <td className="px-4 py-3 text-sm text-slate-600">
                             {getMonthName(inv.month)} {inv.year}
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-400">
+                          <td className="px-4 py-3 text-sm text-[#64748B]">
                             {inv.invoice_number || '—'}
                           </td>
                           <td className="px-4 py-3">
@@ -327,7 +327,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                               {getStatusLabel(inv.status)}
                             </Badge>
                           </td>
-                          <td className="px-4 py-3 text-sm text-right font-medium text-slate-100">
+                          <td className="px-4 py-3 text-sm text-right font-medium text-[#0F172A]">
                             {formatCurrency(inv.total_amount)}
                           </td>
                           <td className="px-4 py-3 text-right">

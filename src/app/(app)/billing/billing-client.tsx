@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { toast } from 'sonner'
-import { Plus, Filter, Loader2, ChevronRight, Trash2 } from 'lucide-react'
+import { Plus, Loader2, ChevronRight, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -125,23 +124,23 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
         {/* ── Mobile: card list ── */}
         <div className="sm:hidden space-y-2">
           {filtered.length === 0 ? (
-            <p className="text-center py-10 text-slate-400 text-sm">No se encontraron facturas</p>
+            <p className="text-center py-10 text-[#64748B] text-sm">No se encontraron facturas</p>
           ) : (
             filtered.map((inv) => (
               <button
                 key={inv.id}
                 onClick={() => router.push(`/billing/${inv.id}`)}
-                className="w-full text-left rounded-xl border border-slate-700 bg-slate-800 p-4 hover:border-blue-500/50 transition-colors active:bg-slate-700"
+                className="w-full text-left rounded-xl border border-[#E2E8F0] bg-white p-4 hover:border-blue-200 hover:bg-blue-50/20 transition-colors active:bg-slate-50"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-100 truncate">{inv.clients?.name}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-sm font-semibold text-[#0F172A] truncate">{inv.clients?.name}</p>
+                    <p className="text-xs text-[#64748B] mt-0.5">
                       {getMonthName(inv.month)} {inv.year} · {inv.invoice_number || '—'}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <span className="text-sm font-bold text-slate-100">{formatCurrency(inv.total_amount)}</span>
+                    <span className="text-sm font-bold text-[#0F172A]">{formatCurrency(inv.total_amount)}</span>
                     <Badge className={getStatusBadgeColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
                   </div>
                 </div>
@@ -151,23 +150,23 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
         </div>
 
         {/* ── Tablet/Desktop: table ── */}
-        <div className="hidden sm:block rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
+        <div className="hidden sm:block rounded-xl border border-[#E2E8F0] bg-white overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase hidden md:table-cell">Nº Factura</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Cliente</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Período</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Total</th>
+                <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase hidden md:table-cell">Nº Factura</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Cliente</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Período</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Estado</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Total</th>
                   <th className="px-4 py-3 w-16"></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-12 text-slate-400">
+                    <td colSpan={6} className="text-center py-12 text-[#64748B]">
                       No se encontraron facturas
                     </td>
                   </tr>
@@ -175,19 +174,19 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                   filtered.map((inv) => (
                     <tr
                       key={inv.id}
-                      className="border-b border-slate-700/50 hover:bg-slate-700/30 cursor-pointer transition-colors"
+                      className="border-b border-[#F1F5F9] hover:bg-slate-50 cursor-pointer transition-colors"
                       onClick={() => router.push(`/billing/${inv.id}`)}
                     >
-                      <td className="px-4 py-3.5 text-sm text-slate-400 hidden md:table-cell">
+                      <td className="px-4 py-3.5 text-sm text-[#64748B] hidden md:table-cell">
                         {inv.invoice_number || `CCS-${inv.year}-???`}
                       </td>
                       <td className="px-4 py-3.5">
-                        <p className="text-sm font-medium text-slate-100">{inv.clients?.name}</p>
+                        <p className="text-sm font-medium text-[#0F172A]">{inv.clients?.name}</p>
                         {inv.clients?.email && (
-                          <p className="text-xs text-slate-400">{inv.clients.email}</p>
+                          <p className="text-xs text-[#64748B]">{inv.clients.email}</p>
                         )}
                       </td>
-                      <td className="px-4 py-3.5 text-sm text-slate-300">
+                      <td className="px-4 py-3.5 text-sm text-slate-600">
                         {getMonthName(inv.month)} {inv.year}
                       </td>
                       <td className="px-4 py-3.5">
@@ -195,7 +194,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                           {getStatusLabel(inv.status)}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3.5 text-right text-sm font-semibold text-slate-100">
+                      <td className="px-4 py-3.5 text-right text-sm font-semibold text-[#0F172A]">
                         {formatCurrency(inv.total_amount)}
                       </td>
                       <td className="px-4 py-3.5 text-right">
@@ -203,7 +202,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                           <button
                             onClick={(e) => handleDelete(inv.id, e)}
                             disabled={deletingId === inv.id}
-                            className="p-1.5 text-slate-500 hover:text-red-400 transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
                           >
                             {deletingId === inv.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -211,7 +210,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                               <Trash2 className="h-4 w-4" />
                             )}
                           </button>
-                          <ChevronRight className="h-4 w-4 text-slate-500" />
+                          <ChevronRight className="h-4 w-4 text-slate-400" />
                         </div>
                       </td>
                     </tr>
@@ -222,7 +221,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
           </div>
         </div>
 
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-[#64748B]">
           {filtered.length} facturas · Total: {formatCurrency(filtered.reduce((s, i) => s + i.total_amount, 0))}
         </p>
       </div>

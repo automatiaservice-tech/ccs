@@ -34,7 +34,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
@@ -47,12 +47,12 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <p className="text-slate-400 text-sm mt-1">Panel de Administración</p>
+          <p className="text-[#64748B] text-sm mt-1">Panel de Administración</p>
         </div>
 
         {/* Form */}
-        <div className="bg-slate-800 rounded-xl border border-slate-700 p-8 shadow-xl">
-          <h2 className="text-lg font-semibold text-slate-100 mb-6">Iniciar sesión</h2>
+        <div className="bg-white rounded-xl border border-[#E2E8F0] p-8 shadow-sm">
+          <h2 className="text-lg font-semibold text-[#0F172A] mb-6">Iniciar sesión</h2>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">

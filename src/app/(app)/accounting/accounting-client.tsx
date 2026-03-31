@@ -152,7 +152,7 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
             ))}
           </SelectContent>
         </Select>
-        <span className="text-slate-400 text-sm">
+        <span className="text-[#64748B] text-sm">
           {getMonthName(month)} {year}
         </span>
       </div>
@@ -163,27 +163,12 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Ingresos</p>
-                <p className="text-2xl font-bold text-slate-100 mt-1">{formatCurrency(summary.totalIncome)}</p>
-                <p className="text-xs text-slate-400 mt-1">Facturas pagadas</p>
+                <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Ingresos</p>
+                <p className="text-2xl font-bold text-[#0F172A] mt-1">{formatCurrency(summary.totalIncome)}</p>
+                <p className="text-xs text-[#64748B] mt-1">Facturas pagadas</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20">
-                <DollarSign className="h-5 w-5 text-blue-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Gastos</p>
-                <p className="text-2xl font-bold text-slate-100 mt-1">{formatCurrency(summary.totalExpenses)}</p>
-                <p className="text-xs text-slate-400 mt-1">Total registrado</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/20">
-                <TrendingDown className="h-5 w-5 text-red-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
+                <DollarSign className="h-5 w-5 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -193,14 +178,29 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Beneficio neto</p>
-                <p className={`text-2xl font-bold mt-1 ${summary.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Gastos</p>
+                <p className="text-2xl font-bold text-[#0F172A] mt-1">{formatCurrency(summary.totalExpenses)}</p>
+                <p className="text-xs text-[#64748B] mt-1">Total registrado</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
+                <TrendingDown className="h-5 w-5 text-red-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Beneficio neto</p>
+                <p className={`text-2xl font-bold mt-1 ${summary.netProfit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                   {formatCurrency(summary.netProfit)}
                 </p>
-                <p className="text-xs text-slate-400 mt-1">Ingresos − Gastos</p>
+                <p className="text-xs text-[#64748B] mt-1">Ingresos − Gastos</p>
               </div>
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${summary.netProfit >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                <TrendingUp className={`h-5 w-5 ${summary.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`} />
+              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${summary.netProfit >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                <TrendingUp className={`h-5 w-5 ${summary.netProfit >= 0 ? 'text-green-600' : 'text-red-500'}`} />
               </div>
             </div>
           </CardContent>
@@ -216,7 +216,7 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
           </CardHeader>
           <CardContent>
             {summary.totalIncome === 0 ? (
-              <p className="text-center text-slate-400 py-8 text-sm">Sin ingresos este mes</p>
+              <p className="text-center text-[#64748B] py-8 text-sm">Sin ingresos este mes</p>
             ) : (
               <DonutChart data={summary.incomeByType} />
             )}
@@ -225,9 +225,9 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
                 <div key={item.name} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-slate-300">{item.name}</span>
+                    <span className="text-slate-700">{item.name}</span>
                   </div>
-                  <span className="text-slate-100 font-medium">{formatCurrency(item.value)}</span>
+                  <span className="text-[#0F172A] font-medium">{formatCurrency(item.value)}</span>
                 </div>
               ))}
             </div>
@@ -247,42 +247,42 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
           </CardHeader>
           <CardContent className="p-0">
             {initialExpenses.length === 0 ? (
-              <p className="text-center text-slate-400 py-8 text-sm px-6">
+              <p className="text-center text-[#64748B] py-8 text-sm px-6">
                 Sin gastos registrados este mes
               </p>
             ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="text-left px-4 py-2 text-xs font-medium text-slate-400">Descripción</th>
-                    <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 hidden sm:table-cell">Categoría</th>
-                    <th className="text-right px-4 py-2 text-xs font-medium text-slate-400">Importe</th>
+                  <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                    <th className="text-left px-4 py-2 text-xs font-medium text-[#64748B]">Descripción</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-[#64748B] hidden sm:table-cell">Categoría</th>
+                    <th className="text-right px-4 py-2 text-xs font-medium text-[#64748B]">Importe</th>
                     <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {initialExpenses.map((exp) => (
-                    <tr key={exp.id} className="border-b border-slate-700/50">
+                    <tr key={exp.id} className="border-b border-[#F1F5F9]">
                       <td className="px-4 py-3">
-                        <p className="text-sm text-slate-100">{exp.description}</p>
-                        <p className="text-xs text-slate-400">{formatDate(exp.date)}</p>
+                        <p className="text-sm text-[#0F172A]">{exp.description}</p>
+                        <p className="text-xs text-[#64748B]">{formatDate(exp.date)}</p>
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
-                        <span className="text-xs text-slate-400 capitalize">{exp.category}</span>
+                        <span className="text-xs text-[#64748B] capitalize">{exp.category}</span>
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-medium text-slate-100">
+                      <td className="px-4 py-3 text-right text-sm font-medium text-[#0F172A]">
                         {formatCurrency(exp.amount)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
-                          <button onClick={() => openEdit(exp)} className="p-1 text-slate-500 hover:text-blue-400">
+                          <button onClick={() => openEdit(exp)} className="p-1 text-slate-400 hover:text-blue-600">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(exp.id)}
                             disabled={deletingId === exp.id}
-                            className="p-1 text-slate-500 hover:text-red-400 disabled:opacity-50"
+                            className="p-1 text-slate-400 hover:text-red-500 disabled:opacity-50"
                           >
                             {deletingId === exp.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -296,9 +296,9 @@ export function AccountingClient({ initialExpenses, summary, month, year }: Prop
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-slate-600">
-                    <td colSpan={2} className="px-4 py-3 text-sm font-medium text-slate-300">Total gastos</td>
-                    <td className="px-4 py-3 text-right text-sm font-bold text-slate-100">
+                  <tr className="border-t border-[#E2E8F0] bg-[#F8FAFC]">
+                    <td colSpan={2} className="px-4 py-3 text-sm font-medium text-slate-700">Total gastos</td>
+                    <td className="px-4 py-3 text-right text-sm font-bold text-[#0F172A]">
                       {formatCurrency(totalExpenses)}
                     </td>
                     <td></td>

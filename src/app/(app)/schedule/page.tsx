@@ -11,8 +11,8 @@ export default async function SchedulePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Horario</h1>
-        <p className="text-slate-400 text-sm mt-1">Vista semanal de sesiones</p>
+        <h1 className="text-2xl font-bold text-[#0F172A]">Horario</h1>
+        <p className="text-[#64748B] text-sm mt-1">Vista semanal de sesiones</p>
       </div>
 
       <WeeklySchedule initialSessions={sessions} allClients={clients} />
