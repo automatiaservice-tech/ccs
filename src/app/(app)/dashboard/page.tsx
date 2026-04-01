@@ -17,7 +17,7 @@ import Link from 'next/link'
 export default async function DashboardPage() {
   const [stats, quickStats] = await Promise.all([
     getDashboardStats(),
-    getQuickStats(),
+    getQuickStats().catch(() => ({ genderDist: [], weeklyData: [] })),
   ])
 
   const now = new Date()

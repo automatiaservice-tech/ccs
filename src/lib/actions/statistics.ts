@@ -8,7 +8,7 @@ export async function getClientStats() {
 
   const { data: clients, error } = await supabase
     .from('clients')
-    .select('id, age, gender, profile_type, active')
+    .select('*')
     .eq('active', true)
 
   if (error) throw error
@@ -217,7 +217,7 @@ export async function getQuickStats() {
 
   const { data: clients } = await supabase
     .from('clients')
-    .select('gender')
+    .select('*')
     .eq('active', true)
 
   const genderDist = [

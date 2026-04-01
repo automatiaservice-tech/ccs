@@ -1,11 +1,30 @@
 import { getClientStats, getAttendanceStats, getRevenueByTypeStats } from '@/lib/actions/statistics'
 import { StatisticsClient } from './statistics-client'
 
+const DEFAULT_CLIENT_STATS = {
+  ageDistribution: [],
+  avgAge: null,
+  avgAgeMale: null,
+  avgAgeFemale: null,
+  genderDist: [],
+  totalActive: 0,
+  byGender: { masculino: 0, femenino: 0, otro: 0 },
+}
+
+const DEFAULT_ATTENDANCE_STATS = {
+  weeklyAttendance: [],
+  dayData: [],
+  monthSessions: 0,
+  avgAttendees: 0,
+  topClientName: '—',
+  attendanceRate: 0,
+}
+
 export default async function StatisticsPage() {
   const [clientStats, attendanceStats, revenueStats] = await Promise.all([
-    getClientStats(),
-    getAttendanceStats(),
-    getRevenueByTypeStats(),
+    getClientStats().catch(() => DEFAULT_CLIENT_STATS),
+    getAttendanceStats().catch(() => DEFAULT_ATTENDANCE_STATS),
+    getRevenueByTypeStats().catch(() => []),
   ])
 
   return (
