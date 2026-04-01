@@ -40,7 +40,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center mb-8">
           <div className="relative h-24 w-48 mb-2">
             <Image
-              src="/logo.jpg"
+              src="/logo.png"
               alt="CCS Center"
               fill
               className="object-contain"

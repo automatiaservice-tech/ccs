@@ -31,7 +31,7 @@ export function TopNavbar() {
       {/* Left: logo + brand name */}
       <div className="flex items-center gap-2.5 flex-1 min-w-0">
         <div className="relative h-8 w-8 shrink-0">
-          <Image src="/logo.jpg" alt="CCS Center" fill className="object-contain" priority />
+          <Image src="/logo.png" alt="CCS Center" fill className="object-contain" priority />
         </div>
         <span
           className="font-semibold text-[#0F172A] truncate"
