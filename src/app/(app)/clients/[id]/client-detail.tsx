@@ -59,6 +59,8 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
     email: client.email || '',
     monthly_fee: client.monthly_fee?.toString() || '',
     notes: client.notes || '',
+    age: client.age?.toString() || '',
+    gender: (client.gender || '') as string,
   })
 
   // Invoice generation modal
@@ -76,6 +78,8 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
         email: form.email || null,
         monthly_fee: form.monthly_fee ? parseFloat(form.monthly_fee) : null,
         notes: form.notes || null,
+        age: form.age ? parseInt(form.age) : null,
+        gender: (form.gender || null) as any,
       })
       toast.success('Datos actualizados correctamente')
       router.refresh()
@@ -199,6 +203,32 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                 <div className="space-y-1.5">
                   <Label>Tipo de perfil</Label>
                   <Input value={getProfileTypeLabel(client.profile_type)} disabled />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Edad</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={form.age}
+                    onChange={(e) => setForm((p) => ({ ...p, age: e.target.value }))}
+                    placeholder="35"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Sexo</Label>
+                  <Select value={form.gender} onValueChange={(v) => setForm((p) => ({ ...p, gender: v }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="masculino">Masculino</SelectItem>
+                      <SelectItem value="femenino">Femenino</SelectItem>
+                      <SelectItem value="otro">Otro</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {client.profile_type === 'fixed_group' && (

@@ -1,6 +1,8 @@
 import { getDashboardStats } from '@/lib/actions/attendance'
+import { getQuickStats } from '@/lib/actions/statistics'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DashboardChart } from './chart'
+import { QuickStats } from './quick-stats'
 import { formatCurrency } from '@/lib/utils'
 import {
   TrendingUp,
@@ -13,7 +15,10 @@ import {
 import Link from 'next/link'
 
 export default async function DashboardPage() {
-  const stats = await getDashboardStats()
+  const [stats, quickStats] = await Promise.all([
+    getDashboardStats(),
+    getQuickStats(),
+  ])
 
   const now = new Date()
   const monthName = now.toLocaleString('es-ES', { month: 'long', year: 'numeric' })
@@ -115,6 +120,9 @@ export default async function DashboardPage() {
           <DashboardChart data={stats.chartData} />
         </CardContent>
       </Card>
+
+      {/* Quick Stats */}
+      <QuickStats genderDist={quickStats.genderDist} weeklyData={quickStats.weeklyData} />
 
       {/* Quick Access */}
       <div>

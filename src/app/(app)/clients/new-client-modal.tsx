@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { cn, getDayName } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { createClientAction } from '@/lib/actions/clients'
 import { getSessions } from '@/lib/actions/sessions'
 
@@ -51,6 +51,8 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
     monthly_fee: '',
     notes: '',
     session_ids: [] as string[],
+    age: '',
+    gender: '' as any,
   })
   const router = useRouter()
 
@@ -76,6 +78,8 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
         monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : undefined,
         notes: formData.notes,
         session_ids: formData.session_ids,
+        age: formData.age ? parseInt(formData.age) : undefined,
+        gender: formData.gender || undefined,
       })
       toast.success(`Cliente "${client.name}" creado correctamente`)
       router.refresh()
@@ -97,6 +101,8 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
       monthly_fee: '',
       notes: '',
       session_ids: [],
+      age: '',
+      gender: '' as any,
     })
   }
 
@@ -173,6 +179,33 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                 onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
                 placeholder="juan@email.com"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="age">Edad</Label>
+              <Input
+                id="age"
+                type="number"
+                min="1"
+                max="100"
+                value={formData.age}
+                onChange={(e) => setFormData((p) => ({ ...p, age: e.target.value }))}
+                placeholder="35"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Sexo</Label>
+              <Select value={formData.gender} onValueChange={(v) => setFormData((p) => ({ ...p, gender: v as any }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="masculino">Masculino</SelectItem>
+                  <SelectItem value="femenino">Femenino</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="col-span-2 space-y-1.5">

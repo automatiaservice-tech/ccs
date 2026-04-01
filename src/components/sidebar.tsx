@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   Receipt,
   BarChart3,
+  BarChart2,
   MessageCircle,
   LogOut,
   X,
@@ -25,6 +26,7 @@ const navItems = [
   { href: '/schedule/checkin', label: 'Pasar Lista', icon: ClipboardCheck },
   { href: '/billing', label: 'Facturación', icon: Receipt },
   { href: '/accounting', label: 'Contabilidad', icon: BarChart3 },
+  { href: '/statistics', label: 'Estadísticas', icon: BarChart2 },
   { href: '/whatsapp', label: 'WhatsApp', icon: MessageCircle },
 ]
 

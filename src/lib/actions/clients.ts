@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { Client, ProfileType } from '@/lib/supabase/database.types'
+import type { Client, ProfileType, Gender } from '@/lib/supabase/database.types'
 
 export async function getClients(filters?: { active?: boolean; profile_type?: ProfileType }) {
   const supabase = await createClient()
@@ -43,6 +43,8 @@ export async function createClientAction(formData: {
   monthly_fee?: number
   notes: string
   session_ids?: string[]
+  age?: number
+  gender?: Gender
 }) {
   const supabase = await createClient()
 
@@ -56,6 +58,8 @@ export async function createClientAction(formData: {
       monthly_fee: formData.monthly_fee || null,
       notes: formData.notes || null,
       active: true,
+      age: formData.age || null,
+      gender: formData.gender || null,
     })
     .select()
     .single()

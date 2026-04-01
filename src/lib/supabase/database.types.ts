@@ -3,6 +3,8 @@ export type SessionType = 'fixed_group' | 'variable_group' | 'individual'
 export type InvoiceStatus = 'draft' | 'sent' | 'paid'
 export type ExpenseCategory = 'alquiler' | 'suministros' | 'material' | 'otros'
 
+export type Gender = 'masculino' | 'femenino' | 'otro'
+
 export interface Client {
   id: string
   name: string
@@ -12,6 +14,8 @@ export interface Client {
   monthly_fee: number | null
   notes: string | null
   active: boolean
+  age: number | null
+  gender: Gender | null
   created_at: string
 }
 
