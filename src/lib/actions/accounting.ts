@@ -64,28 +64,39 @@ export async function getAccountingSummary(month: number, year: number) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate = `${year}-${String(month).padStart(2, '0')}-31`
 
-  // Income from paid invoices
+  // Step 1: get paid invoices (client_id + amount) — no join
   const { data: invoices } = await supabase
     .from('invoices')
-    .select('total_amount, clients(profile_type)')
+    .select('client_id, total_amount')
     .eq('month', month)
     .eq('year', year)
     .eq('status', 'paid')
 
   const totalIncome = invoices?.reduce((s, i) => s + i.total_amount, 0) || 0
 
-  // Income by type
+  // Step 2: get profile_type for each involved client separately
   const byType: Record<string, number> = {
     fixed_group: 0,
     variable_group: 0,
     individual: 0,
   }
-  for (const inv of invoices || []) {
-    const type = (inv.clients as any)?.profile_type || 'unknown'
-    if (type in byType) byType[type] += inv.total_amount
+  if (invoices && invoices.length > 0) {
+    const clientIds = [...new Set(invoices.map((i) => i.client_id).filter(Boolean))]
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id, profile_type')
+      .in('id', clientIds)
+
+    const profileOf: Record<string, string> = Object.fromEntries(
+      (clients || []).map((c) => [c.id, c.profile_type])
+    )
+    for (const inv of invoices) {
+      const type = profileOf[inv.client_id] || 'unknown'
+      if (type in byType) byType[type] += inv.total_amount
+    }
   }
 
-  // Expenses
+  // Step 3: expenses for the period
   const { data: expenses } = await supabase
     .from('expenses')
     .select('amount')

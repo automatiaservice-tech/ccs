@@ -11,9 +11,20 @@ export default async function AccountingPage({
   const month = parseInt(monthParam || String(now.getMonth() + 1))
   const year = parseInt(yearParam || String(now.getFullYear()))
 
+  const DEFAULT_SUMMARY = {
+    totalIncome: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    incomeByType: [
+      { name: 'Grupo Fijo', value: 0, color: '#3b82f6' },
+      { name: 'Grupo Variable', value: 0, color: '#22c55e' },
+      { name: 'Individual', value: 0, color: '#f97316' },
+    ],
+  }
+
   const [expenses, summary] = await Promise.all([
-    getExpenses(month, year),
-    getAccountingSummary(month, year),
+    getExpenses(month, year).catch(() => []),
+    getAccountingSummary(month, year).catch(() => DEFAULT_SUMMARY),
   ])
 
   return (

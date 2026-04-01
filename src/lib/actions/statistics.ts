@@ -178,17 +178,25 @@ export async function getAttendanceStats() {
 export async function getRevenueByTypeStats() {
   const supabase = await createClient()
   const now = new Date()
+
+  // Fetch all client profile types once
+  const { data: allClients } = await supabase.from('clients').select('id, profile_type')
+  const profileOf: Record<string, string> = Object.fromEntries(
+    (allClients || []).map((c) => [c.id, c.profile_type])
+  )
+
+  const MONTH_LABELS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
   const result = []
 
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const m = d.getMonth() + 1
     const y = d.getFullYear()
-    const monthLabel = d.toLocaleString('es-ES', { month: 'short' })
+    const monthLabel = MONTH_LABELS[d.getMonth()]
 
     const { data: invoices } = await supabase
       .from('invoices')
-      .select('total_amount, clients(profile_type)')
+      .select('client_id, total_amount')
       .eq('month', m)
       .eq('year', y)
       .eq('status', 'paid')
@@ -197,8 +205,8 @@ export async function getRevenueByTypeStats() {
     let variable_group = 0
     let individual = 0
 
-    ;(invoices || []).forEach((inv: any) => {
-      const pt = inv.clients?.profile_type
+    ;(invoices || []).forEach((inv) => {
+      const pt = profileOf[inv.client_id]
       if (pt === 'fixed_group') fixed_group += inv.total_amount
       else if (pt === 'variable_group') variable_group += inv.total_amount
       else if (pt === 'individual') individual += inv.total_amount
