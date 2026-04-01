@@ -19,7 +19,7 @@ export function MobileHeader() {
 
       <div className="flex items-center gap-2">
         <div className="relative h-8 w-8">
-          <Image src="/logo.svg" alt="CCS Center" fill className="object-contain" priority />
+          <Image src="/logo.jpg" alt="CCS Center" fill className="object-contain" priority />
         </div>
         <span className="text-sm font-bold text-slate-100">CCS Center</span>
       </div>

@@ -163,7 +163,7 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
             <div className="flex items-center gap-3">
               <div className="relative h-14 w-14 shrink-0">
                 <Image
-                  src="/logo.svg"
+                  src="/logo.jpg"
                   alt="CCS Center"
                   fill
                   className="object-contain"
