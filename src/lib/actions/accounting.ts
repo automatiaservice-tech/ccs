@@ -111,8 +111,8 @@ export async function getAccountingSummary(month: number, year: number) {
     netProfit: totalIncome - totalExpenses,
     incomeByType: [
       { name: 'Grupo Fijo', value: byType.fixed_group, color: '#3b82f6' },
-      { name: 'Grupo Variable', value: byType.variable_group, color: '#22c55e' },
-      { name: 'Individual', value: byType.individual, color: '#f97316' },
+      { name: 'Grupo Personal Variable', value: byType.variable_group, color: '#22c55e' },
+      { name: 'Personal', value: byType.individual, color: '#f97316' },
     ],
   }
 }

@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Users, Pencil, Trash2, Loader2, Search, UserMinus, UserPlus } from 'lucide-react'
+import { Plus, Users, Pencil, Trash2, Loader2, Search, UserMinus, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { cn, getDayName } from '@/lib/utils'
+import { cn, getDayName, PROFILE_TYPE_LABELS } from '@/lib/utils'
 import {
   createSessionAction,
   updateSessionAction,
@@ -39,11 +39,7 @@ const SESSION_TYPE_BADGE: Record<string, string> = {
   individual: 'bg-orange-50 text-orange-600 border-orange-200',
 }
 
-const SESSION_TYPE_LABELS: Record<string, string> = {
-  fixed_group: 'Grupo Fijo',
-  variable_group: 'Grupo Variable',
-  individual: 'Individual',
-}
+const SESSION_TYPE_LABELS = PROFILE_TYPE_LABELS
 
 const TYPE_DOT: Record<string, string> = {
   fixed_group: 'bg-blue-500',
@@ -79,6 +75,13 @@ const emptyForm = {
   max_capacity: '',
 }
 
+const DAYS_SHORT = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+
+function todayDayIndex() {
+  const js = new Date().getDay() // 0=Sun
+  return js === 0 ? 6 : js - 1 // Convert to 0=Mon…6=Sun
+}
+
 export function WeeklySchedule({
   initialSessions,
   allClients,
@@ -87,6 +90,9 @@ export function WeeklySchedule({
   allClients: Client[]
 }) {
   const router = useRouter()
+
+  // ── Mobile: single-day navigation ───────────────────────────────────────
+  const [mobileDay, setMobileDay] = useState(todayDayIndex)
 
   // ── Create / Edit form modal ────────────────────────────────────────────
   const [showFormModal, setShowFormModal] = useState(false)
@@ -226,17 +232,98 @@ export function WeeklySchedule({
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded bg-green-500" />
-          <span className="text-[#64748B]">Grupo Variable</span>
+          <span className="text-[#64748B]">Grupo Personal Variable</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded bg-orange-500" />
-          <span className="text-[#64748B]">Individual</span>
+          <span className="text-[#64748B]">Personal</span>
         </div>
         <span className="text-slate-400 text-[10px] self-center">· Toca una sesión para ver participantes</span>
       </div>
 
-      {/* Weekly Grid — horizontal scroll on mobile */}
-      <div className="overflow-x-auto -mx-4 md:mx-0 pb-2">
+      {/* ── Mobile: single-day navigation (hidden sm+) ── */}
+      <div className="sm:hidden space-y-3">
+        {/* Day picker */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMobileDay((d) => (d + 6) % 7)}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <div className="flex flex-1 gap-1 justify-center">
+            {DAYS.map((d) => (
+              <button
+                key={d}
+                onClick={() => setMobileDay(d)}
+                className={cn(
+                  'flex-1 h-9 rounded-lg text-xs font-semibold transition-colors',
+                  mobileDay === d
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-500 hover:bg-slate-100'
+                )}
+              >
+                {DAYS_SHORT[d]}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setMobileDay((d) => (d + 1) % 7)}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Selected day label */}
+        <h3 className="text-sm font-semibold text-slate-700">{getDayName(mobileDay)}</h3>
+
+        {/* Sessions for selected day */}
+        <div className="space-y-2">
+          {initialSessions
+            .filter((s) => s.day_of_week === mobileDay)
+            .sort((a, b) => a.time.localeCompare(b.time))
+            .length === 0 ? (
+            <p className="text-center text-slate-400 text-sm py-8">Sin sesiones este día</p>
+          ) : (
+            initialSessions
+              .filter((s) => s.day_of_week === mobileDay)
+              .sort((a, b) => a.time.localeCompare(b.time))
+              .map((s) => {
+                const clientCount = s.session_clients?.length || 0
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => openDetail(s)}
+                    className={cn(
+                      'w-full text-left rounded-xl border-l-4 p-4 border border-[#E2E8F0] cursor-pointer transition-all active:scale-[0.98]',
+                      SESSION_TYPE_COLORS[s.session_type]
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 leading-tight">{s.name}</p>
+                        <p className="text-sm text-[#64748B] mt-1">{s.time.substring(0, 5)}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <Badge className={cn('text-[10px] px-1.5 py-0', SESSION_TYPE_BADGE[s.session_type])}>
+                          {SESSION_TYPE_LABELS[s.session_type]}
+                        </Badge>
+                        <div className="flex items-center gap-1 text-[#64748B]">
+                          <Users className="h-3.5 w-3.5" />
+                          <span className="text-xs">{clientCount}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })
+          )}
+        </div>
+      </div>
+
+      {/* ── Desktop: 7-column weekly grid (hidden on mobile) ── */}
+      <div className="hidden sm:block overflow-x-auto -mx-4 md:mx-0 pb-2">
         <div className="grid grid-cols-7 gap-2 md:gap-3 min-w-[560px] px-4 md:px-0">
           {DAYS.map((day) => {
             const daySessions = initialSessions
@@ -514,8 +601,8 @@ export function WeeklySchedule({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
-                    <SelectItem value="variable_group">Grupo Variable</SelectItem>
-                    <SelectItem value="individual">Individual</SelectItem>
+                    <SelectItem value="variable_group">Grupo Personal Variable</SelectItem>
+                    <SelectItem value="individual">Personal</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

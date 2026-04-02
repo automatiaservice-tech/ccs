@@ -23,7 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             'lg:ml-60',
           ].join(' ')}
         >
-          <div className="p-4 md:p-6 lg:p-8">{children}</div>
+          <div className="p-4 md:p-6 lg:p-8 page-enter">{children}</div>
         </main>
 
         {/* Mobile bottom navigation */}

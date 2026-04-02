@@ -100,7 +100,7 @@ interface Props {
     topClientName: string
     attendanceRate: number
   }
-  revenueStats: { month: string; 'Grupo Fijo': number; 'Grupo Variable': number; Individual: number }[]
+  revenueStats: { month: string; 'Grupo Fijo': number; 'Grupo Personal Variable': number; Personal: number }[]
 }
 
 export function StatisticsClient({ clientStats, attendanceStats, revenueStats }: Props) {
@@ -331,8 +331,8 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats }:
                 />
                 <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} formatter={(v) => <span style={{ color: '#64748b' }}>{v}</span>} />
                 <Bar dataKey="Grupo Fijo" stackId="a" fill="#2563eb" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="Grupo Variable" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="Individual" stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Grupo Personal Variable" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="Personal" stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

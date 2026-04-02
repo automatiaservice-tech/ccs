@@ -34,13 +34,15 @@ export function getDayName(day: number): string {
   return days[day] || ''
 }
 
+// ── Centralised label map — update here to change everywhere ──────────────
+export const PROFILE_TYPE_LABELS: Record<string, string> = {
+  fixed_group: 'Grupo Fijo',
+  variable_group: 'Grupo Personal Variable',
+  individual: 'Personal',
+}
+
 export function getProfileTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    fixed_group: 'Grupo Fijo',
-    variable_group: 'Grupo Personal Variable',
-    individual: 'Personal',
-  }
-  return labels[type] || type
+  return PROFILE_TYPE_LABELS[type] || type
 }
 
 export function getProfileTypeBadgeColor(type: string): string {

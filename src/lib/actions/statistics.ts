@@ -212,7 +212,7 @@ export async function getRevenueByTypeStats() {
       else if (pt === 'individual') individual += inv.total_amount
     })
 
-    result.push({ month: monthLabel, 'Grupo Fijo': fixed_group, 'Grupo Variable': variable_group, Individual: individual })
+    result.push({ month: monthLabel, 'Grupo Fijo': fixed_group, 'Grupo Personal Variable': variable_group, Personal: individual })
   }
 
   return result

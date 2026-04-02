@@ -127,7 +127,7 @@ export default async function DashboardPage() {
       {/* Quick Access */}
       <div>
         <h2 className="text-base font-semibold text-slate-700 mb-3">Accesos rápidos</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <Link
             href="/schedule/checkin"
             className="flex items-center justify-between p-4 rounded-xl border border-[#E2E8F0] bg-white hover:border-blue-200 hover:bg-blue-50/30 transition-colors group"

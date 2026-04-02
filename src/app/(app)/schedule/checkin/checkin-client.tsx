@@ -213,11 +213,12 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
                 </div>
 
                 {activeClients.map((client) => (
-                  <div
+                  <label
                     key={client.id}
-                    className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+                    htmlFor={client.id}
+                    className="flex items-center justify-between min-h-[52px] px-3 rounded-lg hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Checkbox
                         id={client.id}
                         checked={attendance[client.id] ?? false}
@@ -227,24 +228,25 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
                             [client.id]: checked === true,
                           }))
                         }
+                        className="h-5 w-5 shrink-0"
                       />
-                      <label htmlFor={client.id} className="cursor-pointer">
-                        <p className="text-sm font-medium text-[#0F172A]">{client.name}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[#0F172A] truncate">{client.name}</p>
                         <Badge
                           className={`mt-0.5 text-[10px] ${getProfileTypeBadgeColor(client.profile_type)}`}
                         >
                           {getProfileTypeLabel(client.profile_type)}
                         </Badge>
-                      </label>
+                      </div>
                     </div>
-                    <span className="text-sm font-medium text-slate-600">
+                    <span className="text-sm font-medium text-slate-600 shrink-0 ml-2">
                       {attendance[client.id] ? costPreview(client, attendeesCount) : '—'}
                     </span>
-                  </div>
+                  </label>
                 ))}
 
-                <div className="pt-4 flex justify-end">
-                  <Button onClick={handleSave} disabled={saving}>
+                <div className="pt-4 sticky bottom-4">
+                  <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto min-h-[48px]">
                     {saving ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
