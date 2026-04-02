@@ -17,6 +17,7 @@ export interface Client {
   age: number | null
   gender: Gender | null
   enrollment_date: string | null
+  birth_date: string | null
   created_at: string
 }
 

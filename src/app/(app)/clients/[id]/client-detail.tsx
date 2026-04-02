@@ -30,6 +30,7 @@ import {
   getStatusBadgeColor,
   getStatusLabel,
   getMonthName,
+  calculateAge,
 } from '@/lib/utils'
 
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -75,7 +76,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
     email: client.email || '',
     monthly_fee: client.monthly_fee?.toString() || '',
     notes: client.notes || '',
-    age: client.age?.toString() || '',
+    birth_date: client.birth_date || '',
     gender: (client.gender || '') as string,
     enrollment_month: existingEnrollment.month,
     enrollment_year: existingEnrollment.year,
@@ -101,7 +102,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
         email: form.email || null,
         monthly_fee: form.monthly_fee ? parseFloat(form.monthly_fee) : null,
         notes: form.notes || null,
-        age: form.age ? parseInt(form.age) : null,
+        birth_date: form.birth_date || null,
         gender: (form.gender || null) as any,
         enrollment_date: enrollmentDate,
       })
@@ -232,15 +233,18 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Edad</Label>
+                  <Label>Fecha de nacimiento</Label>
                   <Input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={form.age}
-                    onChange={(e) => setForm((p) => ({ ...p, age: e.target.value }))}
-                    placeholder="35"
+                    type="date"
+                    value={form.birth_date}
+                    onChange={(e) => setForm((p) => ({ ...p, birth_date: e.target.value }))}
+                    max={new Date().toISOString().split('T')[0]}
                   />
+                  {form.birth_date && (
+                    <p className="text-xs text-[#64748B]">
+                      Edad: {calculateAge(form.birth_date)} años
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">

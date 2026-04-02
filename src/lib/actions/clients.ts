@@ -43,7 +43,7 @@ export async function createClientAction(formData: {
   monthly_fee?: number
   notes: string
   session_ids?: string[]
-  age?: number
+  birth_date?: string
   gender?: Gender
   enrollment_date?: string
 }) {
@@ -59,7 +59,7 @@ export async function createClientAction(formData: {
       monthly_fee: formData.monthly_fee || null,
       notes: formData.notes || null,
       active: true,
-      age: formData.age || null,
+      birth_date: formData.birth_date || null,
       gender: formData.gender || null,
       enrollment_date: formData.enrollment_date || null,
     })

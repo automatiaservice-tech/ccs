@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
+import { cn, calculateAge } from '@/lib/utils'
 import { createClientAction } from '@/lib/actions/clients'
 import { getSessions } from '@/lib/actions/sessions'
 
@@ -51,7 +51,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
     monthly_fee: '',
     notes: '',
     session_ids: [] as string[],
-    age: '',
+    birth_date: '',
     gender: '' as any,
     enrollment_month: '',
     enrollment_year: '',
@@ -85,7 +85,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
         monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : undefined,
         notes: formData.notes,
         session_ids: formData.session_ids,
-        age: formData.age ? parseInt(formData.age) : undefined,
+        birth_date: formData.birth_date || undefined,
         gender: formData.gender || undefined,
         enrollment_date: enrollmentDate,
       })
@@ -109,7 +109,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
       monthly_fee: '',
       notes: '',
       session_ids: [],
-      age: '',
+      birth_date: '',
       gender: '' as any,
       enrollment_month: '',
       enrollment_year: '',
@@ -192,16 +192,19 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="age">Edad</Label>
+              <Label htmlFor="birth_date">Fecha de nacimiento</Label>
               <Input
-                id="age"
-                type="number"
-                min="1"
-                max="100"
-                value={formData.age}
-                onChange={(e) => setFormData((p) => ({ ...p, age: e.target.value }))}
-                placeholder="35"
+                id="birth_date"
+                type="date"
+                value={formData.birth_date}
+                onChange={(e) => setFormData((p) => ({ ...p, birth_date: e.target.value }))}
+                max={new Date().toISOString().split('T')[0]}
               />
+              {formData.birth_date && (
+                <p className="text-xs text-[#64748B]">
+                  Edad: {calculateAge(formData.birth_date)} años
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">

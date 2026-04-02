@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { calculateAge } from '@/lib/utils'
 
 // ── Client Statistics ────────────────────────────────────────────────────────
 export async function getClientStats() {
@@ -15,6 +16,11 @@ export async function getClientStats() {
 
   const active = clients || []
 
+  // Enrich each client with calculated age from birth_date
+  const activeWithAge = active
+    .filter((c) => c.birth_date)
+    .map((c) => ({ ...c, calcAge: calculateAge(c.birth_date!) }))
+
   const ranges = [
     { label: '18-25', min: 18, max: 25 },
     { label: '26-35', min: 26, max: 35 },
@@ -24,7 +30,7 @@ export async function getClientStats() {
   ]
 
   const ageDistribution = ranges.map(({ label, min, max }) => {
-    const inRange = active.filter((c) => c.age && c.age >= min && c.age <= max)
+    const inRange = activeWithAge.filter((c) => c.calcAge >= min && c.calcAge <= max)
     return {
       range: label,
       masculino: inRange.filter((c) => c.gender === 'masculino').length,
@@ -33,17 +39,16 @@ export async function getClientStats() {
     }
   })
 
-  const withAge = active.filter((c) => c.age)
-  const avgAge = withAge.length
-    ? Math.round(withAge.reduce((s, c) => s + (c.age ?? 0), 0) / withAge.length)
+  const avgAge = activeWithAge.length
+    ? Math.round(activeWithAge.reduce((s, c) => s + c.calcAge, 0) / activeWithAge.length)
     : null
-  const hombres = withAge.filter((c) => c.gender === 'masculino')
-  const mujeres = withAge.filter((c) => c.gender === 'femenino')
+  const hombres = activeWithAge.filter((c) => c.gender === 'masculino')
+  const mujeres = activeWithAge.filter((c) => c.gender === 'femenino')
   const avgAgeMale = hombres.length
-    ? Math.round(hombres.reduce((s, c) => s + (c.age ?? 0), 0) / hombres.length)
+    ? Math.round(hombres.reduce((s, c) => s + c.calcAge, 0) / hombres.length)
     : null
   const avgAgeFemale = mujeres.length
-    ? Math.round(mujeres.reduce((s, c) => s + (c.age ?? 0), 0) / mujeres.length)
+    ? Math.round(mujeres.reduce((s, c) => s + c.calcAge, 0) / mujeres.length)
     : null
 
   const genderDist = [
