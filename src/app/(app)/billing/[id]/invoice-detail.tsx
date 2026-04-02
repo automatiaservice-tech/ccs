@@ -22,8 +22,8 @@ import { updateInvoiceStatus } from '@/lib/actions/billing'
 // ── Line categorisation based on description prefix ───────────────────────
 function lineType(description: string): 'fixed' | 'individual' | 'variable' | 'other' {
   if (description === 'Cuota mensual fija') return 'fixed'
-  if (description.startsWith('Sesión individual')) return 'individual'
-  if (description.startsWith('Sesión grupal')) return 'variable'
+  if (description.startsWith('Sesión personal') || description.startsWith('Sesión individual')) return 'individual'
+  if (description.startsWith('Grupo Personal Variable') || description.startsWith('Sesión grupal')) return 'variable'
   return 'other'
 }
 
@@ -215,11 +215,11 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
                 {(fixedLines.length > 0 && (individualLines.length > 0 || variableLines.length > 0)) && (
                   <Separator className="my-1" />
                 )}
-                <InvoiceSection title="Sesiones Individuales" lines={individualLines} />
+                <InvoiceSection title="Sesiones Personales" lines={individualLines} />
                 {(individualLines.length > 0 && variableLines.length > 0) && (
                   <Separator className="my-1" />
                 )}
-                <InvoiceSection title="Grupo Variable" lines={variableLines} />
+                <InvoiceSection title="Grupo Personal Variable" lines={variableLines} />
                 <InvoiceSection title="Otros" lines={otherLines} />
               </>
             ) : (

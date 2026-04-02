@@ -29,8 +29,8 @@ const SESSION_TYPE_BADGE: Record<string, string> = {
 
 const SESSION_TYPE_LABELS: Record<string, string> = {
   fixed_group: 'Grupo Fijo',
-  variable_group: 'Grupo Variable',
-  individual: 'Individual',
+  variable_group: 'Grupo Personal Variable',
+  individual: 'Personal',
 }
 
 const DAYS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -53,6 +53,8 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
     session_ids: [] as string[],
     age: '',
     gender: '' as any,
+    enrollment_month: '',
+    enrollment_year: '',
   })
   const router = useRouter()
 
@@ -70,6 +72,11 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
     }
     setLoading(true)
     try {
+      const enrollmentDate =
+        formData.enrollment_month && formData.enrollment_year
+          ? `${formData.enrollment_year}-${formData.enrollment_month.padStart(2, '0')}-01`
+          : undefined
+
       const client = await createClientAction({
         name: formData.name,
         phone: formData.phone,
@@ -80,6 +87,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
         session_ids: formData.session_ids,
         age: formData.age ? parseInt(formData.age) : undefined,
         gender: formData.gender || undefined,
+        enrollment_date: enrollmentDate,
       })
       toast.success(`Cliente "${client.name}" creado correctamente`)
       router.refresh()
@@ -103,6 +111,8 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
       session_ids: [],
       age: '',
       gender: '' as any,
+      enrollment_month: '',
+      enrollment_year: '',
     })
   }
 
@@ -209,6 +219,38 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
             </div>
 
             <div className="col-span-2 space-y-1.5">
+              <Label>Fecha de inscripción</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={formData.enrollment_month}
+                  onValueChange={(v) => setFormData((p) => ({ ...p, enrollment_month: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Mes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={formData.enrollment_year}
+                  onValueChange={(v) => setFormData((p) => ({ ...p, enrollment_year: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Año" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="col-span-2 space-y-1.5">
               <Label>Tipo de cliente *</Label>
               <Select value={formData.profile_type} onValueChange={handleProfileTypeChange}>
                 <SelectTrigger>
@@ -224,13 +266,13 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                   <SelectItem value="variable_group">
                     <div className="flex items-center gap-2">
                       <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
-                      Grupo Variable — pago por sesión
+                      Grupo Personal Variable — pago por sesión
                     </div>
                   </SelectItem>
                   <SelectItem value="individual">
                     <div className="flex items-center gap-2">
                       <div className="h-2.5 w-2.5 rounded-full bg-orange-500" />
-                      Individual — sesiones personales
+                      Personal — sesiones personales
                     </div>
                   </SelectItem>
                 </SelectContent>

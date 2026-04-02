@@ -16,6 +16,20 @@ export interface Client {
   active: boolean
   age: number | null
   gender: Gender | null
+  enrollment_date: string | null
+  created_at: string
+}
+
+export type TrainerAbsenceStatus = 'pendiente' | 'devuelta' | 'recuperada'
+
+export interface TrainerAbsence {
+  id: string
+  session_id: string
+  date: string
+  notes: string | null
+  status: TrainerAbsenceStatus
+  resolution_date: string | null
+  resolution_notes: string | null
   created_at: string
 }
 

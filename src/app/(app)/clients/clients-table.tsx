@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, ChevronRight } from 'lucide-react'
+import { Plus, Search, ChevronRight, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -11,8 +11,19 @@ import { cn, getProfileTypeLabel } from '@/lib/utils'
 import type { Client } from '@/lib/supabase/database.types'
 import { NewClientModal } from './new-client-modal'
 
+type SortOrder = 'alpha' | 'oldest' | 'newest'
+
 interface ClientsTableProps {
   initialClients: Client[]
+}
+
+function sortClients(clients: Client[], order: SortOrder): Client[] {
+  return [...clients].sort((a, b) => {
+    if (order === 'alpha') return a.name.localeCompare(b.name, 'es')
+    const dateA = new Date(a.enrollment_date ?? a.created_at).getTime()
+    const dateB = new Date(b.enrollment_date ?? b.created_at).getTime()
+    return order === 'oldest' ? dateA - dateB : dateB - dateA
+  })
 }
 
 // ── Color coding by profile type ──────────────────────────────────────────
@@ -72,19 +83,23 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('alpha')
   const [showModal, setShowModal] = useState(false)
   const router = useRouter()
 
-  const filtered = initialClients.filter((c) => {
-    const matchSearch =
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.phone || '').includes(search) ||
-      (c.email || '').toLowerCase().includes(search.toLowerCase())
-    const matchType = typeFilter === 'all' || c.profile_type === typeFilter
-    const matchStatus =
-      statusFilter === 'all' || (statusFilter === 'active' ? c.active : !c.active)
-    return matchSearch && matchType && matchStatus
-  })
+  const filtered = sortClients(
+    initialClients.filter((c) => {
+      const matchSearch =
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        (c.phone || '').includes(search) ||
+        (c.email || '').toLowerCase().includes(search.toLowerCase())
+      const matchType = typeFilter === 'all' || c.profile_type === typeFilter
+      const matchStatus =
+        statusFilter === 'all' || (statusFilter === 'active' ? c.active : !c.active)
+      return matchSearch && matchType && matchStatus
+    }),
+    sortOrder
+  )
 
   return (
     <>
@@ -110,14 +125,14 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
           {/* Filters row */}
           <div className="flex gap-2 flex-wrap">
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-40 h-9 text-xs">
+              <SelectTrigger className="w-44 h-9 text-xs">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los tipos</SelectItem>
                 <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
-                <SelectItem value="variable_group">Grupo Variable</SelectItem>
-                <SelectItem value="individual">Individual</SelectItem>
+                <SelectItem value="variable_group">Grupo Personal Variable</SelectItem>
+                <SelectItem value="individual">Personal</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -130,6 +145,17 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                 <SelectItem value="inactive">Inactivos</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
+              <SelectTrigger className="w-52 h-9 text-xs">
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1 shrink-0" />
+                <SelectValue placeholder="Ordenar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="alpha">Alfabético (A-Z)</SelectItem>
+                <SelectItem value="oldest">Antigüedad (más antiguos primero)</SelectItem>
+                <SelectItem value="newest">Antigüedad (más recientes primero)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Color legend */}
@@ -140,11 +166,11 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-3 w-3 rounded-sm bg-green-500" />
-              <span className="text-[#64748B]">Grupo Variable</span>
+              <span className="text-[#64748B]">Grupo Personal Variable</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-3 w-3 rounded-sm bg-orange-500" />
-              <span className="text-[#64748B]">Individual</span>
+              <span className="text-[#64748B]">Personal</span>
             </div>
           </div>
         </div>

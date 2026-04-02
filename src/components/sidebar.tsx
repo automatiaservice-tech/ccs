@@ -14,6 +14,7 @@ import {
   MessageCircle,
   LogOut,
   X,
+  UserX,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/clients', label: 'Clientes', icon: Users },
   { href: '/schedule', label: 'Horario', icon: Calendar },
   { href: '/schedule/checkin', label: 'Pasar Lista', icon: ClipboardCheck },
+  { href: '/absences', label: 'Ausencias', icon: UserX },
   { href: '/billing', label: 'Facturación', icon: Receipt },
   { href: '/accounting', label: 'Contabilidad', icon: BarChart3 },
   { href: '/statistics', label: 'Estadísticas', icon: BarChart2 },

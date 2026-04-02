@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { toast } from 'sonner'
-import { Save, Loader2, CheckSquare, AlertCircle } from 'lucide-react'
+import { Save, Loader2, CheckSquare, AlertCircle, UserX } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -126,7 +127,17 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
     <div className="space-y-4">
       {/* Session selector */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-700">Selecciona la sesión</label>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <label className="text-sm font-medium text-slate-700">Selecciona la sesión</label>
+          {selectedSessionId && (
+            <Link href={`/absences?session_id=${selectedSessionId}`}>
+              <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50 h-8 text-xs">
+                <UserX className="h-3.5 w-3.5 mr-1" />
+                El entrenador no puede asistir
+              </Button>
+            </Link>
+          )}
+        </div>
         <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
           <SelectTrigger className="max-w-md">
             <SelectValue placeholder="Elige una sesión de hoy..." />

@@ -45,6 +45,7 @@ export async function createClientAction(formData: {
   session_ids?: string[]
   age?: number
   gender?: Gender
+  enrollment_date?: string
 }) {
   const supabase = await createClient()
 
@@ -60,6 +61,7 @@ export async function createClientAction(formData: {
       active: true,
       age: formData.age || null,
       gender: formData.gender || null,
+      enrollment_date: formData.enrollment_date || null,
     })
     .select()
     .single()

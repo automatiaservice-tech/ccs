@@ -31,6 +31,14 @@ import {
   getStatusLabel,
   getMonthName,
 } from '@/lib/utils'
+
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+function formatEnrollmentDate(date: string | null): string | null {
+  if (!date) return null
+  const d = new Date(date + 'T00:00:00')
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
+}
 import { updateClientAction, toggleClientActive } from '@/lib/actions/clients'
 import { generateClientInvoice } from '@/lib/actions/billing'
 import type { Client } from '@/lib/supabase/database.types'
@@ -53,6 +61,14 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
 
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(false)
+  // Parse existing enrollment_date into month/year strings
+  const existingEnrollment = client.enrollment_date
+    ? (() => {
+        const d = new Date(client.enrollment_date + 'T00:00:00')
+        return { month: String(d.getMonth() + 1), year: String(d.getFullYear()) }
+      })()
+    : { month: '', year: '' }
+
   const [form, setForm] = useState({
     name: client.name,
     phone: client.phone || '',
@@ -61,6 +77,8 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
     notes: client.notes || '',
     age: client.age?.toString() || '',
     gender: (client.gender || '') as string,
+    enrollment_month: existingEnrollment.month,
+    enrollment_year: existingEnrollment.year,
   })
 
   // Invoice generation modal
@@ -72,6 +90,11 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
   const handleSave = async () => {
     setSaving(true)
     try {
+      const enrollmentDate =
+        form.enrollment_month && form.enrollment_year
+          ? `${form.enrollment_year}-${form.enrollment_month.padStart(2, '0')}-01`
+          : null
+
       await updateClientAction(client.id, {
         name: form.name,
         phone: form.phone || null,
@@ -80,6 +103,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
         notes: form.notes || null,
         age: form.age ? parseInt(form.age) : null,
         gender: (form.gender || null) as any,
+        enrollment_date: enrollmentDate,
       })
       toast.success('Datos actualizados correctamente')
       router.refresh()
@@ -144,7 +168,9 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
             </Badge>
           </div>
           <p className="text-[#64748B] text-sm mt-1">
-            Cliente desde {formatDate(client.created_at)}
+            {client.enrollment_date
+              ? `Miembro desde: ${formatEnrollmentDate(client.enrollment_date)}`
+              : `Cliente desde ${formatDate(client.created_at)}`}
           </p>
         </div>
 
@@ -229,6 +255,38 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                       <SelectItem value="otro">Otro</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="col-span-1 sm:col-span-2 space-y-1.5">
+                  <Label>Fecha de inscripción</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select
+                      value={form.enrollment_month}
+                      onValueChange={(v) => setForm((p) => ({ ...p, enrollment_month: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Mes" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTH_NAMES.map((m, i) => (
+                          <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={form.enrollment_year}
+                      onValueChange={(v) => setForm((p) => ({ ...p, enrollment_year: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Año" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 {client.profile_type === 'fixed_group' && (

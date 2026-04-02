@@ -71,7 +71,7 @@ async function buildLines(
     return { lines, totalAmount }
   }
 
-  // ── INDIVIDUAL: prospective — 40€ × session occurrences in month ─────────
+  // ── INDIVIDUAL (Personal): prospective — 40€ × session occurrences in month
   if (client.profile_type === 'individual') {
     const { data: sessionClients, error: scErr } = await supabase
       .from('session_clients')
@@ -88,7 +88,7 @@ async function buildLines(
       for (const date of dates) {
         lines.push({
           date,
-          description: `Sesión individual — ${session.name}`,
+          description: `Sesión personal — ${session.name}`,
           attendees: null,
           amount: SESSION_PRICE,
           line_type: 'individual',
@@ -101,46 +101,45 @@ async function buildLines(
     return { lines, totalAmount }
   }
 
-  // ── VARIABLE GROUP: retrospective — 40€ ÷ total attendees that session-day
+  // ── VARIABLE GROUP (Grupo Personal Variable): prospective — 40€ ÷ clients assigned to session
   if (client.profile_type === 'variable_group') {
-    const startDate = `${year}-${mm}-01`
-    const endDate = `${year}-${mm}-31`
-
-    const { data: records, error: recErr } = await supabase
-      .from('attendance_records')
-      .select('session_id, date, sessions(name)')
+    const { data: sessionClients, error: scErr } = await supabase
+      .from('session_clients')
+      .select('sessions(id, name, day_of_week)')
       .eq('client_id', client.id)
-      .eq('attended', true)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .order('date')
 
-    if (recErr) throw new Error(`Error fetching attendance for client ${client.id}: ${recErr.message}`)
+    if (scErr) throw new Error(`Error fetching sessions for client ${client.id}: ${scErr.message}`)
 
-    for (const record of records || []) {
-      const { count, error: cntErr } = await supabase
-        .from('attendance_records')
-        .select('id', { count: 'exact', head: true })
-        .eq('session_id', record.session_id)
-        .eq('date', record.date)
-        .eq('attended', true)
+    for (const sc of sessionClients || []) {
+      const session = sc.sessions as unknown as { id: string; name: string; day_of_week: number } | null
+      if (!session) continue
 
-      if (cntErr) throw new Error(`Error counting attendees: ${cntErr.message}`)
+      // Count total clients assigned to this session (not attendance — assigned)
+      const { count: clientCount, error: ccErr } = await supabase
+        .from('session_clients')
+        .select('client_id', { count: 'exact', head: true })
+        .eq('session_id', session.id)
 
-      const n = count || 1
+      if (ccErr) throw new Error(`Error counting session clients: ${ccErr.message}`)
+
+      const n = clientCount || 1
       const amount = Math.round((SESSION_PRICE / n) * 100) / 100
 
-      lines.push({
-        date: record.date,
-        description: `Sesión grupal — ${(record.sessions as any)?.name || 'Sesión'}`,
-        attendees: n,
-        amount,
-        line_type: 'variable',
-      })
-      totalAmount += amount
+      const dates = getDatesForDayInMonth(session.day_of_week, month, year)
+      for (const date of dates) {
+        lines.push({
+          date,
+          description: `Grupo Personal Variable — ${session.name} (${n} participantes)`,
+          attendees: n,
+          amount,
+          line_type: 'variable',
+        })
+        totalAmount += amount
+      }
     }
 
     totalAmount = Math.round(totalAmount * 100) / 100
+    lines.sort((a, b) => a.date.localeCompare(b.date))
     return { lines, totalAmount }
   }
 

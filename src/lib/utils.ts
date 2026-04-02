@@ -37,8 +37,8 @@ export function getDayName(day: number): string {
 export function getProfileTypeLabel(type: string): string {
   const labels: Record<string, string> = {
     fixed_group: 'Grupo Fijo',
-    variable_group: 'Grupo Variable',
-    individual: 'Individual',
+    variable_group: 'Grupo Personal Variable',
+    individual: 'Personal',
   }
   return labels[type] || type
 }
