@@ -175,6 +175,88 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
               />
             </div>
 
+            <div className="col-span-2 space-y-1.5">
+              <Label>Tipo de cliente *</Label>
+              <Select value={formData.profile_type} onValueChange={handleProfileTypeChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona tipo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fixed_group">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                      Grupo Fijo — cuota mensual fija
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="variable_group">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                      Grupo Personal Variable — pago por sesión
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="individual">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2.5 w-2.5 rounded-full bg-orange-500" />
+                      Personal — sesiones personales
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.profile_type === 'fixed_group' && (
+              <div className="col-span-2 space-y-1.5">
+                <Label>Tarifa mensual</Label>
+                <Select
+                  value={formData.monthly_fee}
+                  onValueChange={(v) => setFormData((p) => ({ ...p, monthly_fee: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona tarifa..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FIXED_GROUP_RATES.map((r) => (
+                      <SelectItem key={r.value} value={String(r.value)}>
+                        {r.label} — {formatCurrency(r.value)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="col-span-2 space-y-1.5">
+              <Label>Fecha de inscripción</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={formData.enrollment_month}
+                  onValueChange={(v) => setFormData((p) => ({ ...p, enrollment_month: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Mes" />
+                  </SelectTrigger>
+                  <SelectContent side="bottom" avoidCollisions={false}>
+                    {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={formData.enrollment_year}
+                  onValueChange={(v) => setFormData((p) => ({ ...p, enrollment_year: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Año" />
+                  </SelectTrigger>
+                  <SelectContent side="bottom" avoidCollisions={false}>
+                    {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="phone">Teléfono</Label>
               <Input
@@ -226,88 +308,6 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="col-span-2 space-y-1.5">
-              <Label>Fecha de inscripción</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Select
-                  value={formData.enrollment_month}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, enrollment_month: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Mes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m, i) => (
-                      <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={formData.enrollment_year}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, enrollment_year: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Año" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="col-span-2 space-y-1.5">
-              <Label>Tipo de cliente *</Label>
-              <Select value={formData.profile_type} onValueChange={handleProfileTypeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona tipo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="fixed_group">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-                      Grupo Fijo — cuota mensual fija
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="variable_group">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
-                      Grupo Personal Variable — pago por sesión
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="individual">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2.5 w-2.5 rounded-full bg-orange-500" />
-                      Personal — sesiones personales
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {formData.profile_type === 'fixed_group' && (
-              <div className="col-span-2 space-y-1.5">
-                <Label>Tarifa mensual</Label>
-                <Select
-                  value={formData.monthly_fee}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, monthly_fee: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona tarifa..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FIXED_GROUP_RATES.map((r) => (
-                      <SelectItem key={r.value} value={String(r.value)}>
-                        {r.label} — {formatCurrency(r.value)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
 
           {/* ── Session assignment ── */}
