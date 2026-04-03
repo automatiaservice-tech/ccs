@@ -24,6 +24,7 @@ const DEFAULT_RATE_STATS = {
   distribution: [
     { label: 'TARIFA 1', value: 28, count: 0 },
     { label: 'TARIFA 2', value: 40, count: 0 },
+    { label: 'TARIFA VIP', value: 50, count: 0 },
     { label: 'TARIFA 3', value: 60, count: 0 },
     { label: 'TARIFA 4', value: 80, count: 0 },
   ],

@@ -115,7 +115,7 @@ interface Props {
   }
 }
 
-const RATE_COLORS = ['#93c5fd', '#3b82f6', '#1d4ed8', '#4338ca']
+const RATE_COLORS = ['#93c5fd', '#3b82f6', '#7c3aed', '#1d4ed8', '#4338ca']
 
 export function StatisticsClient({ clientStats, attendanceStats, revenueStats, rateStats }: Props) {
   const { ageDistribution, avgAge, avgAgeMale, avgAgeFemale, genderDist, totalActive, byGender } = clientStats
