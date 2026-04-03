@@ -96,20 +96,26 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
           ? `${form.enrollment_year}-${form.enrollment_month.padStart(2, '0')}-01`
           : null
 
+      // Ensure birth_date is in YYYY-MM-DD format (HTML date input already returns this)
+      const birthDate = form.birth_date
+        ? new Date(form.birth_date).toISOString().split('T')[0]
+        : null
+
       await updateClientAction(client.id, {
         name: form.name,
         phone: form.phone || null,
         email: form.email || null,
         monthly_fee: form.monthly_fee ? parseFloat(form.monthly_fee) : null,
         notes: form.notes || null,
-        birth_date: form.birth_date || null,
+        birth_date: birthDate,
         gender: (form.gender || null) as any,
         enrollment_date: enrollmentDate,
       })
       toast.success('Datos actualizados correctamente')
       router.refresh()
-    } catch {
-      toast.error('Error al guardar los cambios')
+    } catch (err: any) {
+      console.error('[ClientDetail] Error saving client:', err)
+      toast.error(err?.message || 'Error al guardar los cambios')
     } finally {
       setSaving(false)
     }

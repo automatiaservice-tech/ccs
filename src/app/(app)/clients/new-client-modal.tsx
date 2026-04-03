@@ -77,6 +77,11 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
           ? `${formData.enrollment_year}-${formData.enrollment_month.padStart(2, '0')}-01`
           : undefined
 
+      // Ensure birth_date is in YYYY-MM-DD format
+      const birthDate = formData.birth_date
+        ? new Date(formData.birth_date).toISOString().split('T')[0]
+        : undefined
+
       const client = await createClientAction({
         name: formData.name,
         phone: formData.phone,
@@ -85,7 +90,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
         monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : undefined,
         notes: formData.notes,
         session_ids: formData.session_ids,
-        birth_date: formData.birth_date || undefined,
+        birth_date: birthDate,
         gender: formData.gender || undefined,
         enrollment_date: enrollmentDate,
       })
@@ -94,6 +99,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
       onClose()
       resetForm()
     } catch (err: any) {
+      console.error('[NewClientModal] Error creating client:', err)
       toast.error(err.message || 'Error al crear el cliente')
     } finally {
       setLoading(false)

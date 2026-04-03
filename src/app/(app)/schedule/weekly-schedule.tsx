@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Users, Pencil, Trash2, Loader2, Search, UserMinus, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Users, Pencil, Trash2, Loader2, Search, UserMinus, UserPlus, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -82,6 +82,98 @@ function todayDayIndex() {
   return js === 0 ? 6 : js - 1 // Convert to 0=Mon…6=Sun
 }
 
+// ── Reusable day session list ─────────────────────────────────────────────────
+function DaySessionList({
+  sessions,
+  onOpen,
+}: {
+  sessions: Session[]
+  onOpen: (s: Session) => void
+}) {
+  if (sessions.length === 0) {
+    return <p className="text-center text-slate-400 text-sm py-8">Sin sesiones este día</p>
+  }
+  return (
+    <div className="space-y-2">
+      {sessions.map((s) => {
+        const clientCount = s.session_clients?.length || 0
+        return (
+          <button
+            key={s.id}
+            onClick={() => onOpen(s)}
+            className={cn(
+              'w-full text-left rounded-xl border-l-4 p-4 border border-[#E2E8F0] cursor-pointer transition-all active:scale-[0.98]',
+              SESSION_TYPE_COLORS[s.session_type]
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-900 leading-tight">{s.name}</p>
+                <p className="text-sm text-[#64748B] mt-1">{s.time.substring(0, 5)}</p>
+              </div>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <Badge className={cn('text-[10px] px-1.5 py-0', SESSION_TYPE_BADGE[s.session_type])}>
+                  {SESSION_TYPE_LABELS[s.session_type]}
+                </Badge>
+                <div className="flex items-center gap-1 text-[#64748B]">
+                  <Users className="h-3.5 w-3.5" />
+                  <span className="text-xs">{clientCount}</span>
+                </div>
+              </div>
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Day navigation (shared between mobile and desktop day-view) ───────────────
+function DayNav({
+  day,
+  onPrev,
+  onNext,
+  onSelect,
+}: {
+  day: number
+  onPrev: () => void
+  onNext: () => void
+  onSelect: (d: number) => void
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={onPrev}
+        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <div className="flex flex-1 gap-1 justify-center">
+        {DAYS.map((d) => (
+          <button
+            key={d}
+            onClick={() => onSelect(d)}
+            className={cn(
+              'flex-1 h-9 rounded-lg text-xs font-semibold transition-colors',
+              day === d
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-500 hover:bg-slate-100'
+            )}
+          >
+            {DAYS_SHORT[d]}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={onNext}
+        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </div>
+  )
+}
+
 export function WeeklySchedule({
   initialSessions,
   allClients,
@@ -91,16 +183,27 @@ export function WeeklySchedule({
 }) {
   const router = useRouter()
 
-  // ── Mobile: single-day navigation ───────────────────────────────────────
-  const [mobileDay, setMobileDay] = useState(todayDayIndex)
+  // ── Shared day navigation state (mobile + desktop day-view) ─────────────────
+  const [activeDay, setActiveDay] = useState(todayDayIndex)
 
-  // ── Create / Edit form modal ────────────────────────────────────────────
+  // ── Desktop view toggle — persisted in localStorage ─────────────────────────
+  const [desktopView, setDesktopView] = useState<'grid' | 'day'>('grid')
+  useEffect(() => {
+    const saved = localStorage.getItem('schedule-desktop-view')
+    if (saved === 'grid' || saved === 'day') setDesktopView(saved)
+  }, [])
+  const switchDesktopView = (v: 'grid' | 'day') => {
+    setDesktopView(v)
+    localStorage.setItem('schedule-desktop-view', v)
+  }
+
+  // ── Create / Edit form modal ─────────────────────────────────────────────────
   const [showFormModal, setShowFormModal] = useState(false)
   const [editSession, setEditSession] = useState<Session | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [formLoading, setFormLoading] = useState(false)
 
-  // ── Session detail modal (participants + info) ──────────────────────────
+  // ── Session detail modal (participants + info) ───────────────────────────────
   const [detailSession, setDetailSession] = useState<Session | null>(null)
   const [participantIds, setParticipantIds] = useState<string[]>([])
   const [participantSearch, setParticipantSearch] = useState('')
@@ -108,21 +211,18 @@ export function WeeklySchedule({
 
   const [deleting, setDeleting] = useState<string | null>(null)
 
-  // ── Open create form ────────────────────────────────────────────────────
   const openCreate = () => {
     setEditSession(null)
     setForm(emptyForm)
     setShowFormModal(true)
   }
 
-  // ── Open detail panel (click on card) ──────────────────────────────────
   const openDetail = (session: Session) => {
     setDetailSession(session)
     setParticipantIds(session.session_clients?.map((sc) => sc.client_id) || [])
     setParticipantSearch('')
   }
 
-  // ── Open edit form from detail panel ───────────────────────────────────
   const openEditForm = (session: Session) => {
     setDetailSession(null)
     setEditSession(session)
@@ -136,7 +236,6 @@ export function WeeklySchedule({
     setShowFormModal(true)
   }
 
-  // ── Submit create/edit form ─────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormLoading(true)
@@ -164,7 +263,6 @@ export function WeeklySchedule({
     }
   }
 
-  // ── Delete session ──────────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta sesión? Se perderán todos los registros de asistencia asociados.')) return
     setDeleting(id)
@@ -180,7 +278,6 @@ export function WeeklySchedule({
     }
   }
 
-  // ── Save participants ───────────────────────────────────────────────────
   const handleSaveParticipants = async () => {
     if (!detailSession) return
     setSavingParticipants(true)
@@ -202,7 +299,6 @@ export function WeeklySchedule({
     )
   }
 
-  // ── Filtered client lists ───────────────────────────────────────────────
   const currentParticipants = useMemo(
     () => allClients.filter((c) => participantIds.includes(c.id)),
     [allClients, participantIds]
@@ -215,10 +311,47 @@ export function WeeklySchedule({
     )
   }, [allClients, participantIds, participantSearch])
 
+  const activeDaySessions = useMemo(
+    () =>
+      initialSessions
+        .filter((s) => s.day_of_week === activeDay)
+        .sort((a, b) => a.time.localeCompare(b.time)),
+    [initialSessions, activeDay]
+  )
+
   return (
     <>
-      <div className="flex justify-end mb-2">
-        <Button onClick={openCreate}>
+      {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        {/* Desktop view toggle — hidden on mobile */}
+        <div className="hidden sm:flex items-center rounded-lg border border-[#E2E8F0] p-0.5 gap-0.5 bg-slate-50">
+          <button
+            onClick={() => switchDesktopView('grid')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+              desktopView === 'grid'
+                ? 'bg-white shadow-sm text-slate-800 border border-[#E2E8F0]'
+                : 'text-slate-500 hover:text-slate-700'
+            )}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Vista Semanal
+          </button>
+          <button
+            onClick={() => switchDesktopView('day')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+              desktopView === 'day'
+                ? 'bg-white shadow-sm text-slate-800 border border-[#E2E8F0]'
+                : 'text-slate-500 hover:text-slate-700'
+            )}
+          >
+            <List className="h-3.5 w-3.5" />
+            Vista por Día
+          </button>
+        </div>
+
+        <Button onClick={openCreate} className="ml-auto">
           <Plus className="h-4 w-4" />
           Nueva sesión
         </Button>
@@ -241,140 +374,92 @@ export function WeeklySchedule({
         <span className="text-slate-400 text-[10px] self-center">· Toca una sesión para ver participantes</span>
       </div>
 
-      {/* ── Mobile: single-day navigation (hidden sm+) ── */}
+      {/* ── Mobile: single-day navigation (hidden sm+) ─────────────────────── */}
       <div className="sm:hidden space-y-3">
-        {/* Day picker */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setMobileDay((d) => (d + 6) % 7)}
-            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <div className="flex flex-1 gap-1 justify-center">
-            {DAYS.map((d) => (
-              <button
-                key={d}
-                onClick={() => setMobileDay(d)}
-                className={cn(
-                  'flex-1 h-9 rounded-lg text-xs font-semibold transition-colors',
-                  mobileDay === d
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-500 hover:bg-slate-100'
-                )}
-              >
-                {DAYS_SHORT[d]}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => setMobileDay((d) => (d + 1) % 7)}
-            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </div>
+        <DayNav
+          day={activeDay}
+          onPrev={() => setActiveDay((d) => (d + 6) % 7)}
+          onNext={() => setActiveDay((d) => (d + 1) % 7)}
+          onSelect={setActiveDay}
+        />
+        <h3 className="text-sm font-semibold text-slate-700">{getDayName(activeDay)}</h3>
+        <DaySessionList sessions={activeDaySessions} onOpen={openDetail} />
+      </div>
 
-        {/* Selected day label */}
-        <h3 className="text-sm font-semibold text-slate-700">{getDayName(mobileDay)}</h3>
+      {/* ── Desktop: grid view ──────────────────────────────────────────────── */}
+      {desktopView === 'grid' && (
+        <div className="hidden sm:block overflow-x-auto pb-2">
+          <div
+            className="grid gap-2 md:gap-3"
+            style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
+          >
+            {DAYS.map((day) => {
+              const daySessions = initialSessions
+                .filter((s) => s.day_of_week === day)
+                .sort((a, b) => a.time.localeCompare(b.time))
 
-        {/* Sessions for selected day */}
-        <div className="space-y-2">
-          {initialSessions
-            .filter((s) => s.day_of_week === mobileDay)
-            .sort((a, b) => a.time.localeCompare(b.time))
-            .length === 0 ? (
-            <p className="text-center text-slate-400 text-sm py-8">Sin sesiones este día</p>
-          ) : (
-            initialSessions
-              .filter((s) => s.day_of_week === mobileDay)
-              .sort((a, b) => a.time.localeCompare(b.time))
-              .map((s) => {
-                const clientCount = s.session_clients?.length || 0
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => openDetail(s)}
-                    className={cn(
-                      'w-full text-left rounded-xl border-l-4 p-4 border border-[#E2E8F0] cursor-pointer transition-all active:scale-[0.98]',
-                      SESSION_TYPE_COLORS[s.session_type]
+              return (
+                <div key={day} className="flex flex-col gap-2 min-w-0">
+                  <h3 className="text-xs font-semibold text-[#64748B] text-center uppercase tracking-wide py-2 border-b border-[#E2E8F0]">
+                    {getDayName(day).substring(0, 3)}
+                  </h3>
+                  <div className="flex flex-col gap-2">
+                    {daySessions.length === 0 ? (
+                      <p className="text-center text-slate-400 text-xs py-4">—</p>
+                    ) : (
+                      daySessions.map((s) => {
+                        const clientCount = s.session_clients?.length || 0
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => openDetail(s)}
+                            className={cn(
+                              'w-full text-left rounded-lg border-l-4 p-2.5 border border-[#E2E8F0] cursor-pointer transition-all hover:shadow-sm active:scale-95',
+                              SESSION_TYPE_COLORS[s.session_type]
+                            )}
+                          >
+                            <p className="text-xs font-semibold text-slate-900 leading-tight break-words hyphens-auto">
+                              {s.name}
+                            </p>
+                            <p className="text-xs text-[#64748B] mt-1">{s.time.substring(0, 5)}</p>
+                            <div className="flex items-center gap-1 mt-1.5">
+                              <Badge className={cn('text-[10px] px-1.5 py-0', SESSION_TYPE_BADGE[s.session_type])}>
+                                {SESSION_TYPE_LABELS[s.session_type]}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-1 mt-2 text-[#64748B]">
+                              <Users className="h-3 w-3" />
+                              <span className="text-[10px]">{clientCount}</span>
+                            </div>
+                          </button>
+                        )
+                      })
                     )}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-900 leading-tight">{s.name}</p>
-                        <p className="text-sm text-[#64748B] mt-1">{s.time.substring(0, 5)}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        <Badge className={cn('text-[10px] px-1.5 py-0', SESSION_TYPE_BADGE[s.session_type])}>
-                          {SESSION_TYPE_LABELS[s.session_type]}
-                        </Badge>
-                        <div className="flex items-center gap-1 text-[#64748B]">
-                          <Users className="h-3.5 w-3.5" />
-                          <span className="text-xs">{clientCount}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })
-          )}
-        </div>
-      </div>
-
-      {/* ── Desktop: 7-column weekly grid (hidden on mobile) ── */}
-      <div className="hidden sm:block overflow-x-auto -mx-4 md:mx-0 pb-2">
-        <div className="grid grid-cols-7 gap-2 md:gap-3 min-w-[560px] px-4 md:px-0">
-          {DAYS.map((day) => {
-            const daySessions = initialSessions
-              .filter((s) => s.day_of_week === day)
-              .sort((a, b) => a.time.localeCompare(b.time))
-
-            return (
-              <div key={day} className="space-y-2">
-                <h3 className="text-xs font-semibold text-[#64748B] text-center uppercase tracking-wide py-2 border-b border-[#E2E8F0]">
-                  {getDayName(day).substring(0, 3)}
-                </h3>
-                <div className="space-y-2 min-h-24">
-                  {daySessions.length === 0 ? (
-                    <p className="text-center text-slate-400 text-xs py-4">—</p>
-                  ) : (
-                    daySessions.map((s) => {
-                      const clientCount = s.session_clients?.length || 0
-                      return (
-                        <button
-                          key={s.id}
-                          onClick={() => openDetail(s)}
-                          className={cn(
-                            'w-full text-left rounded-lg border-l-4 p-2.5 border border-[#E2E8F0] cursor-pointer transition-all active:scale-95',
-                            SESSION_TYPE_COLORS[s.session_type]
-                          )}
-                        >
-                          <p className="text-xs font-semibold text-slate-900 leading-tight break-words hyphens-auto">
-                            {s.name}
-                          </p>
-                          <p className="text-xs text-[#64748B] mt-1">{s.time.substring(0, 5)}</p>
-                          <div className="flex items-center gap-1 mt-1.5">
-                            <Badge className={cn('text-[10px] px-1.5 py-0', SESSION_TYPE_BADGE[s.session_type])}>
-                              {SESSION_TYPE_LABELS[s.session_type]}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-1 mt-2 text-[#64748B]">
-                            <Users className="h-3 w-3" />
-                            <span className="text-[10px]">{clientCount}</span>
-                          </div>
-                        </button>
-                      )
-                    })
-                  )}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ── Session Detail Modal ─────────────────────────────────────────── */}
+      {/* ── Desktop: day-list view ──────────────────────────────────────────── */}
+      {desktopView === 'day' && (
+        <div className="hidden sm:block space-y-3">
+          <DayNav
+            day={activeDay}
+            onPrev={() => setActiveDay((d) => (d + 6) % 7)}
+            onNext={() => setActiveDay((d) => (d + 1) % 7)}
+            onSelect={setActiveDay}
+          />
+          <h3 className="text-base font-semibold text-slate-700">{getDayName(activeDay)}</h3>
+          <div className="max-w-xl">
+            <DaySessionList sessions={activeDaySessions} onOpen={openDetail} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Session Detail Modal ─────────────────────────────────────────────── */}
       <Dialog open={!!detailSession} onOpenChange={(o) => !o && setDetailSession(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           {detailSession && (
@@ -403,7 +488,6 @@ export function WeeklySchedule({
 
                 {/* ── Participants tab ──────────────────────────────── */}
                 <TabsContent value="participantes" className="space-y-3 mt-3">
-                  {/* Assigned clients */}
                   {currentParticipants.length > 0 && (
                     <div>
                       <p className="text-xs font-semibold text-[#64748B] uppercase tracking-wide mb-2">
@@ -434,7 +518,6 @@ export function WeeklySchedule({
                     </div>
                   )}
 
-                  {/* Add clients */}
                   <div>
                     <p className="text-xs font-semibold text-[#64748B] uppercase tracking-wide mb-2">
                       Añadir cliente
@@ -544,7 +627,7 @@ export function WeeklySchedule({
         </DialogContent>
       </Dialog>
 
-      {/* ── Create / Edit Form Modal ─────────────────────────────────────── */}
+      {/* ── Create / Edit Form Modal ──────────────────────────────────────────── */}
       <Dialog open={showFormModal} onOpenChange={(o) => !o && setShowFormModal(false)}>
         <DialogContent>
           <DialogHeader>
