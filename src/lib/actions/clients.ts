@@ -121,6 +121,13 @@ export async function getClientAttendance(clientId: string) {
   return data
 }
 
+export async function deleteClientAction(id: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from('clients').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/clients')
+}
+
 export async function getClientInvoices(clientId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase

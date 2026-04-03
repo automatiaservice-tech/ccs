@@ -1,15 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, ChevronRight, ArrowUpDown } from 'lucide-react'
+import { Plus, Search, ChevronRight, ArrowUpDown, MoreVertical, Loader2, Trash2, UserCheck, UserX, Eye } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { cn, getProfileTypeLabel } from '@/lib/utils'
 import type { Client } from '@/lib/supabase/database.types'
 import { NewClientModal } from './new-client-modal'
+import { deleteClientAction, toggleClientActive } from '@/lib/actions/clients'
 
 type SortOrder = 'alpha' | 'oldest' | 'newest'
 
@@ -79,16 +89,84 @@ function getTableRowStyle(profile_type: string) {
   }
 }
 
+// ── Client actions dropdown ────────────────────────────────────────────────
+interface ClientMenuProps {
+  client: Client
+  onDelete: (client: Client) => void
+  onToggleActive: (client: Client) => void
+}
+
+function ClientMenu({ client, onDelete, onToggleActive }: ClientMenuProps) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <MoreVertical className="h-4 w-4" />
+      </Button>
+      {open && (
+        <div className="absolute right-0 top-9 z-50 min-w-[180px] rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+          <button
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={() => { setOpen(false); router.push(`/clients/${client.id}`) }}
+          >
+            <Eye className="h-4 w-4" />
+            Ver ficha
+          </button>
+          <button
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={() => { setOpen(false); onToggleActive(client) }}
+          >
+            {client.active
+              ? <><UserX className="h-4 w-4" />Marcar como inactivo</>
+              : <><UserCheck className="h-4 w-4" />Marcar como activo</>
+            }
+          </button>
+          <div className="my-1 border-t border-gray-100" />
+          <button
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+            onClick={() => { setOpen(false); onDelete(client) }}
+          >
+            <Trash2 className="h-4 w-4" />
+            Eliminar cliente
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ClientsTable({ initialClients }: ClientsTableProps) {
+  const [clients, setClients] = useState(initialClients)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('alpha')
   const [showModal, setShowModal] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Client | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const router = useRouter()
 
   const filtered = sortClients(
-    initialClients.filter((c) => {
+    clients.filter((c) => {
       const matchSearch =
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         (c.phone || '').includes(search) ||
@@ -100,6 +178,33 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
     }),
     sortOrder
   )
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteClientAction(deleteTarget.id)
+      setClients((prev) => prev.filter((c) => c.id !== deleteTarget.id))
+      toast.success('Cliente eliminado correctamente')
+      setDeleteTarget(null)
+    } catch (err: any) {
+      toast.error(err?.message || 'Error al eliminar el cliente')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleToggleActive = async (client: Client) => {
+    try {
+      await toggleClientActive(client.id, !client.active)
+      setClients((prev) =>
+        prev.map((c) => (c.id === client.id ? { ...c, active: !c.active } : c))
+      )
+      toast.success(client.active ? 'Cliente desactivado' : 'Cliente activado')
+    } catch {
+      toast.error('Error al cambiar el estado')
+    }
+  }
 
   return (
     <>
@@ -181,11 +286,10 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
             <p className="text-center py-10 text-[#64748B] text-sm">No se encontraron clientes</p>
           ) : (
             filtered.map((client) => (
-              <button
+              <div
                 key={client.id}
-                onClick={() => router.push(`/clients/${client.id}`)}
                 className={cn(
-                  'w-full text-left rounded-xl p-4 flex items-center gap-3 transition-colors active:scale-99',
+                  'w-full text-left rounded-xl p-4 flex items-center gap-3 transition-colors',
                   getCardStyle(client.profile_type)
                 )}
               >
@@ -195,10 +299,14 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                     'flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-semibold text-sm',
                     getAvatarStyle(client.profile_type)
                   )}
+                  onClick={() => router.push(`/clients/${client.id}`)}
                 >
                   {client.name.charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div
+                  className="flex-1 min-w-0 cursor-pointer"
+                  onClick={() => router.push(`/clients/${client.id}`)}
+                >
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-gray-900 truncate">{client.name}</p>
                     <Badge
@@ -220,8 +328,12 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                     )}
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
-              </button>
+                <ClientMenu
+                  client={client}
+                  onDelete={setDeleteTarget}
+                  onToggleActive={handleToggleActive}
+                />
+              </div>
             ))
           )}
         </div>
@@ -236,7 +348,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Teléfono</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                  <th className="px-4 py-3 w-8"></th>
+                  <th className="px-4 py-3 w-12"></th>
                 </tr>
               </thead>
               <tbody>
@@ -282,7 +394,11 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                         </Badge>
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <ChevronRight className="h-4 w-4 text-gray-400 inline" />
+                        <ClientMenu
+                          client={client}
+                          onDelete={setDeleteTarget}
+                          onToggleActive={handleToggleActive}
+                        />
                       </td>
                     </tr>
                   ))
@@ -293,11 +409,37 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
         </div>
 
         <p className="text-xs text-[#64748B]">
-          Mostrando {filtered.length} de {initialClients.length} clientes
+          Mostrando {filtered.length} de {clients.length} clientes
         </p>
       </div>
 
       <NewClientModal open={showModal} onClose={() => setShowModal(false)} />
+
+      {/* Delete confirmation modal */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !deleting && !o && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar cliente?</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que quieres eliminar a <strong>{deleteTarget?.name}</strong>? Esta acción no
+              se puede deshacer y eliminará también todo su historial de asistencia y facturas.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

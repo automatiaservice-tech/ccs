@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { ArrowLeft, Loader2, Save, Receipt } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Receipt, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,7 +32,7 @@ import {
   getMonthName,
   calculateAge,
 } from '@/lib/utils'
-import { updateClientAction, toggleClientActive } from '@/lib/actions/clients'
+import { updateClientAction, toggleClientActive, deleteClientAction } from '@/lib/actions/clients'
 import { generateClientInvoice } from '@/lib/actions/billing'
 import type { Client } from '@/lib/supabase/database.types'
 
@@ -65,6 +65,8 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
 
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Parse existing enrollment_date into month/year strings
   const existingEnrollment = client.enrollment_date
@@ -135,6 +137,19 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
       toast.error('Error al cambiar el estado')
     } finally {
       setToggling(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      await deleteClientAction(client.id)
+      toast.success('Cliente eliminado correctamente')
+      router.push('/clients')
+    } catch (err: any) {
+      toast.error(err?.message || 'Error al eliminar el cliente')
+      setDeleting(false)
+      setShowDeleteModal(false)
     }
   }
 
@@ -333,6 +348,17 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                   Guardar cambios
                 </Button>
               </div>
+
+              <div className="border-t border-red-100 pt-4 mt-2">
+                <Button
+                  variant="outline"
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                  onClick={() => setShowDeleteModal(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Eliminar cliente
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -446,6 +472,32 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Client Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={(o) => !deleting && setShowDeleteModal(o)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar cliente?</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que quieres eliminar a <strong>{client.name}</strong>? Esta acción no se puede
+              deshacer y eliminará también todo su historial de asistencia y facturas.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Generate Invoice Modal */}
       <Dialog open={showInvoiceModal} onOpenChange={(o) => !o && setShowInvoiceModal(false)}>
