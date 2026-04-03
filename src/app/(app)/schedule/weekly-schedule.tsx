@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { cn, getDayName, PROFILE_TYPE_LABELS } from '@/lib/utils'
+import { cn, getDayName, PROFILE_TYPE_LABELS, getProfileTypeBadgeColor } from '@/lib/utils'
 import {
   createSessionAction,
   updateSessionAction,
@@ -307,9 +307,12 @@ export function WeeklySchedule({
   const availableClients = useMemo(() => {
     const search = participantSearch.toLowerCase()
     return allClients.filter(
-      (c) => !participantIds.includes(c.id) && c.name.toLowerCase().includes(search)
+      (c) =>
+        !participantIds.includes(c.id) &&
+        c.name.toLowerCase().includes(search) &&
+        c.profile_type === detailSession?.session_type
     )
-  }, [allClients, participantIds, participantSearch])
+  }, [allClients, participantIds, participantSearch, detailSession])
 
   const activeDaySessions = useMemo(
     () =>
@@ -499,11 +502,11 @@ export function WeeklySchedule({
                             key={client.id}
                             className="flex items-center justify-between rounded-lg border border-[#E2E8F0] bg-slate-50 px-3 py-2"
                           >
-                            <div className="min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
                               <p className="text-sm text-slate-800 truncate">{client.name}</p>
-                              <p className="text-[10px] text-slate-400">
+                              <Badge className={cn('text-[10px] px-1.5 py-0 shrink-0', getProfileTypeBadgeColor(client.profile_type))}>
                                 {SESSION_TYPE_LABELS[client.profile_type] || client.profile_type}
-                              </p>
+                              </Badge>
                             </div>
                             <button
                               onClick={() => toggleParticipant(client.id)}
@@ -536,7 +539,9 @@ export function WeeklySchedule({
                         <p className="text-sm text-slate-400 text-center py-4">
                           {participantSearch
                             ? 'Sin resultados'
-                            : 'Todos los clientes ya están asignados'}
+                            : allClients.filter((c) => c.profile_type === detailSession?.session_type).length === 0
+                              ? `No hay clientes de tipo ${SESSION_TYPE_LABELS[detailSession?.session_type ?? ''] ?? ''} registrados`
+                              : 'Todos los clientes de este tipo ya están asignados'}
                         </p>
                       ) : (
                         availableClients.map((client) => (
@@ -545,11 +550,11 @@ export function WeeklySchedule({
                             onClick={() => toggleParticipant(client.id)}
                             className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-50 transition-colors border-b border-[#F1F5F9] last:border-0"
                           >
-                            <div className="min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
                               <p className="text-sm text-slate-800 truncate">{client.name}</p>
-                              <p className="text-[10px] text-slate-400">
+                              <Badge className={cn('text-[10px] px-1.5 py-0 shrink-0', getProfileTypeBadgeColor(client.profile_type))}>
                                 {SESSION_TYPE_LABELS[client.profile_type] || client.profile_type}
-                              </p>
+                              </Badge>
                             </div>
                             <UserPlus className="h-4 w-4 text-blue-500 shrink-0 ml-2" />
                           </button>

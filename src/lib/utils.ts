@@ -72,6 +72,22 @@ export function getStatusLabel(status: string): string {
   return labels[status] || status
 }
 
+// ── Fixed group rate tiers ────────────────────────────────────────────────────
+export const FIXED_GROUP_RATES = [
+  { label: 'TARIFA 1', value: 28 },
+  { label: 'TARIFA 2', value: 40 },
+  { label: 'TARIFA 3', value: 60 },
+  { label: 'TARIFA 4', value: 80 },
+]
+
+export function getFixedGroupRateLabel(fee: number | null | undefined): string {
+  if (fee == null) return '—'
+  const rate = FIXED_GROUP_RATES.find((r) => r.value === fee)
+  return rate
+    ? `${rate.label} — ${new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(fee)}`
+    : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(fee)
+}
+
 export function calculateAge(birthDate: string | Date): number {
   const today = new Date()
   const birth = new Date(birthDate)

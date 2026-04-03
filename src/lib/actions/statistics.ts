@@ -223,6 +223,37 @@ export async function getRevenueByTypeStats() {
   return result
 }
 
+// ── Fixed group rate distribution ────────────────────────────────────────────
+export async function getFixedGroupRateStats() {
+  const supabase = await createClient()
+
+  const { data: clients, error } = await supabase
+    .from('clients')
+    .select('monthly_fee')
+    .eq('profile_type', 'fixed_group')
+    .eq('active', true)
+
+  if (error) throw error
+
+  const RATES = [
+    { label: 'TARIFA 1', value: 28 },
+    { label: 'TARIFA 2', value: 40 },
+    { label: 'TARIFA 3', value: 60 },
+    { label: 'TARIFA 4', value: 80 },
+  ]
+
+  const distribution = RATES.map((r) => ({
+    label: r.label,
+    value: r.value,
+    count: (clients || []).filter((c) => c.monthly_fee === r.value).length,
+  }))
+
+  const totalMRR = (clients || []).reduce((sum, c) => sum + (c.monthly_fee ?? 0), 0)
+  const topRate = distribution.reduce((a, b) => (b.count > a.count ? b : a), distribution[0])
+
+  return { distribution, totalMRR, topRate }
+}
+
 // ── Dashboard quick stats ────────────────────────────────────────────────────
 export async function getQuickStats() {
   const supabase = await createClient()

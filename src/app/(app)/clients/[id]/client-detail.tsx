@@ -31,6 +31,8 @@ import {
   getStatusLabel,
   getMonthName,
   calculateAge,
+  FIXED_GROUP_RATES,
+  getFixedGroupRateLabel,
 } from '@/lib/utils'
 import { updateClientAction, toggleClientActive, deleteClientAction } from '@/lib/actions/clients'
 import { generateClientInvoice } from '@/lib/actions/billing'
@@ -320,14 +322,27 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
 
                 {client.profile_type === 'fixed_group' && (
                   <div className="space-y-1.5">
-                    <Label>Tarifa mensual (€)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                    <Label>Tarifa mensual</Label>
+                    <Select
                       value={form.monthly_fee}
-                      onChange={(e) => setForm((p) => ({ ...p, monthly_fee: e.target.value }))}
-                    />
+                      onValueChange={(v) => setForm((p) => ({ ...p, monthly_fee: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona tarifa..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FIXED_GROUP_RATES.map((r) => (
+                          <SelectItem key={r.value} value={String(r.value)}>
+                            {r.label} — {formatCurrency(r.value)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.monthly_fee && (
+                      <p className="text-xs text-[#64748B]">
+                        {getFixedGroupRateLabel(parseFloat(form.monthly_fee))}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

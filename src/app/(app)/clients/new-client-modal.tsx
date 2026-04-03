@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { cn, calculateAge } from '@/lib/utils'
+import { cn, calculateAge, FIXED_GROUP_RATES, formatCurrency } from '@/lib/utils'
 import { createClientAction } from '@/lib/actions/clients'
 import { getSessions } from '@/lib/actions/sessions'
 
@@ -290,16 +290,22 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
 
             {formData.profile_type === 'fixed_group' && (
               <div className="col-span-2 space-y-1.5">
-                <Label htmlFor="monthly_fee">Tarifa mensual (€)</Label>
-                <Input
-                  id="monthly_fee"
-                  type="number"
-                  min="0"
-                  step="0.01"
+                <Label>Tarifa mensual</Label>
+                <Select
                   value={formData.monthly_fee}
-                  onChange={(e) => setFormData((p) => ({ ...p, monthly_fee: e.target.value }))}
-                  placeholder="50.00"
-                />
+                  onValueChange={(v) => setFormData((p) => ({ ...p, monthly_fee: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona tarifa..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FIXED_GROUP_RATES.map((r) => (
+                      <SelectItem key={r.value} value={String(r.value)}>
+                        {r.label} — {formatCurrency(r.value)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>

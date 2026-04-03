@@ -16,7 +16,8 @@ import {
   Cell,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, TrendingUp, Calendar, Star } from 'lucide-react'
+import { Users, TrendingUp, Calendar, Star, Euro } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 
 // ── Shared tooltip ───────────────────────────────────────────────────────────
 function ChartTooltip({ active, payload, label, formatter }: any) {
@@ -82,6 +83,12 @@ function DonutLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, name 
 }
 
 // ── Props ────────────────────────────────────────────────────────────────────
+interface RateItem {
+  label: string
+  value: number
+  count: number
+}
+
 interface Props {
   clientStats: {
     ageDistribution: { range: string; masculino: number; femenino: number; otro: number }[]
@@ -101,9 +108,16 @@ interface Props {
     attendanceRate: number
   }
   revenueStats: { month: string; 'Grupo Fijo': number; 'Grupo Personal Variable': number; Personal: number }[]
+  rateStats: {
+    distribution: RateItem[]
+    totalMRR: number
+    topRate: RateItem
+  }
 }
 
-export function StatisticsClient({ clientStats, attendanceStats, revenueStats }: Props) {
+const RATE_COLORS = ['#93c5fd', '#3b82f6', '#1d4ed8', '#4338ca']
+
+export function StatisticsClient({ clientStats, attendanceStats, revenueStats, rateStats }: Props) {
   const { ageDistribution, avgAge, avgAgeMale, avgAgeFemale, genderDist, totalActive, byGender } = clientStats
   const { weeklyAttendance, dayData, monthSessions, avgAttendees, topClientName, attendanceRate } = attendanceStats
 
@@ -312,7 +326,113 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats }:
         </div>
       </section>
 
-      {/* ══ C) INGRESOS POR TIPO ═════════════════════════════════════════════ */}
+      {/* ══ C) TARIFAS GRUPO FIJO ════════════════════════════════════════════ */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-[#0F172A] border-b border-[#E2E8F0] pb-2">
+          Distribución de tarifas — Grupo Fijo
+        </h2>
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <StatCard
+            label="Ingresos recurrentes mensuales"
+            value={formatCurrency(rateStats.totalMRR)}
+            sub="Suma de cuotas fijas activas"
+            icon={Euro}
+            iconBg="bg-blue-50"
+            iconColor="text-blue-600"
+          />
+          <StatCard
+            label="Tarifa más contratada"
+            value={rateStats.topRate.count > 0 ? rateStats.topRate.label : '—'}
+            sub={rateStats.topRate.count > 0 ? `${formatCurrency(rateStats.topRate.value)} · ${rateStats.topRate.count} clientes` : 'Sin datos'}
+            icon={Star}
+            iconBg="bg-indigo-50"
+            iconColor="text-indigo-600"
+          />
+          <StatCard
+            label="Clientes grupo fijo activos"
+            value={rateStats.distribution.reduce((s, r) => s + r.count, 0)}
+            sub="Con cuota mensual asignada"
+            icon={Users}
+            iconBg="bg-blue-50"
+            iconColor="text-blue-600"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Bar chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Clientes por tarifa</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  data={rateStats.distribution.map((r, i) => ({ ...r, fill: RATE_COLORS[i] }))}
+                  margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0].payload as RateItem
+                      return (
+                        <div className="bg-white border border-[#E2E8F0] rounded-lg p-3 shadow-md text-xs">
+                          <p className="font-medium text-slate-700">{d.label} — {formatCurrency(d.value)}</p>
+                          <p className="text-slate-600 mt-1">{d.count} clientes</p>
+                        </div>
+                      )
+                    }}
+                    cursor={{ fill: 'rgba(226,232,240,0.4)' }}
+                  />
+                  <Bar dataKey="count" name="Clientes" radius={[4, 4, 0, 0]}>
+                    {rateStats.distribution.map((_, i) => (
+                      <Cell key={i} fill={RATE_COLORS[i]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Breakdown cards */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Desglose por tarifa</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-2">
+              {rateStats.distribution.map((r, i) => (
+                <div key={r.label} className="flex items-center gap-3">
+                  <div className="h-3 w-3 rounded-sm shrink-0" style={{ background: RATE_COLORS[i] }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-slate-700">{r.label}</span>
+                      <span className="text-slate-500 text-xs">{r.count} × {formatCurrency(r.value)} = <span className="font-semibold text-slate-700">{formatCurrency(r.count * r.value)}/mes</span></span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: rateStats.totalMRR > 0 ? `${((r.count * r.value) / rateStats.totalMRR) * 100}%` : '0%',
+                          background: RATE_COLORS[i],
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {rateStats.totalMRR === 0 && (
+                <p className="text-sm text-slate-400 text-center py-4">Sin clientes de grupo fijo activos</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* ══ E) INGRESOS POR TIPO ═════════════════════════════════════════════ */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold text-[#0F172A] border-b border-[#E2E8F0] pb-2">
           Ingresos por tipo de cliente — últimos 6 meses
