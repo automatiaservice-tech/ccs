@@ -31,7 +31,7 @@ export async function getClientById(id: string) {
     .eq('id', id)
     .single()
 
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return data as Client
 }
 
@@ -66,7 +66,7 @@ export async function createClientAction(formData: {
     .select()
     .single()
 
-  if (error) throw error
+  if (error) throw new Error(error.message)
 
   // Assign to sessions
   if (formData.session_ids && formData.session_ids.length > 0) {
@@ -75,7 +75,7 @@ export async function createClientAction(formData: {
       client_id: client.id,
     }))
     const { error: scError } = await supabase.from('session_clients').insert(sessionClients)
-    if (scError) throw scError
+    if (scError) throw new Error(scError.message)
   }
 
   revalidatePath('/clients')
@@ -94,7 +94,7 @@ export async function updateClientAction(
     .select()
     .single()
 
-  if (error) throw error
+  if (error) throw new Error(error.message)
   revalidatePath('/clients')
   revalidatePath(`/clients/${id}`)
   return data as Client
@@ -103,7 +103,7 @@ export async function updateClientAction(
 export async function toggleClientActive(id: string, active: boolean) {
   const supabase = await createClient()
   const { error } = await supabase.from('clients').update({ active }).eq('id', id)
-  if (error) throw error
+  if (error) throw new Error(error.message)
   revalidatePath('/clients')
   revalidatePath(`/clients/${id}`)
 }
@@ -117,7 +117,7 @@ export async function getClientAttendance(clientId: string) {
     .order('date', { ascending: false })
     .limit(50)
 
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return data
 }
 
@@ -130,6 +130,6 @@ export async function getClientInvoices(clientId: string) {
     .order('year', { ascending: false })
     .order('month', { ascending: false })
 
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return data
 }
