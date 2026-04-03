@@ -32,17 +32,12 @@ import {
   getMonthName,
   calculateAge,
 } from '@/lib/utils'
-
-const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-
-function formatEnrollmentDate(date: string | null): string | null {
-  if (!date) return null
-  const d = new Date(date + 'T00:00:00')
-  return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
-}
 import { updateClientAction, toggleClientActive } from '@/lib/actions/clients'
 import { generateClientInvoice } from '@/lib/actions/billing'
 import type { Client } from '@/lib/supabase/database.types'
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: getMonthName(i + 1) }))
 const YEARS = Array.from({ length: 5 }, (_, i) => {
@@ -50,18 +45,27 @@ const YEARS = Array.from({ length: 5 }, (_, i) => {
   return { value: String(y), label: String(y) }
 })
 
+function formatEnrollmentDate(date: string | null): string | null {
+  if (!date) return null
+  const d = new Date(date + 'T00:00:00')
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface ClientDetailProps {
   client: Client
   attendance: any[]
   invoices: any[]
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
 export function ClientDetail({ client, attendance, invoices }: ClientDetailProps) {
   const router = useRouter()
   const now = new Date()
 
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(false)
+
   // Parse existing enrollment_date into month/year strings
   const existingEnrollment = client.enrollment_date
     ? (() => {
@@ -96,7 +100,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
           ? `${form.enrollment_year}-${form.enrollment_month.padStart(2, '0')}-01`
           : null
 
-      // Ensure birth_date is in YYYY-MM-DD format (HTML date input already returns this)
+      // Ensure birth_date is in YYYY-MM-DD format
       const birthDate = form.birth_date
         ? new Date(form.birth_date).toISOString().split('T')[0]
         : null
@@ -384,7 +388,6 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
         {/* Historial de facturas */}
         <TabsContent value="facturas">
           <div className="space-y-3">
-            {/* Generate invoice button */}
             <div className="flex justify-end">
               <Button onClick={() => setShowInvoiceModal(true)} variant="outline" size="sm">
                 <Receipt className="h-4 w-4" />
