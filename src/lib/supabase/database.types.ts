@@ -18,7 +18,24 @@ export interface Client {
   gender: Gender | null
   enrollment_date: string | null
   birth_date: string | null
+  whatsapp_enabled: boolean
   created_at: string
+}
+
+export interface WhatsAppLog {
+  id: string
+  client_id: string | null
+  session_id: string | null
+  phone: string | null
+  status: 'sent' | 'failed'
+  error_message: string | null
+  sent_at: string
+}
+
+export interface WhatsAppConfig {
+  id: number
+  global_enabled: boolean
+  send_hour_utc: number
 }
 
 export type TrainerAbsenceStatus = 'pendiente' | 'devuelta' | 'recuperada'

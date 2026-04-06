@@ -35,6 +35,7 @@ import {
   getFixedGroupRateLabel,
 } from '@/lib/utils'
 import { updateClientAction, toggleClientActive, deleteClientAction } from '@/lib/actions/clients'
+import { updateClientWhatsApp } from '@/lib/actions/whatsapp'
 import { generateClientInvoice } from '@/lib/actions/billing'
 import type { Client } from '@/lib/supabase/database.types'
 
@@ -67,6 +68,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
 
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(false)
+  const [togglingWa, setTogglingWa] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -145,6 +147,19 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
       toast.error('Error al cambiar el estado')
     } finally {
       setToggling(false)
+    }
+  }
+
+  const handleToggleWhatsApp = async (checked: boolean) => {
+    setTogglingWa(true)
+    try {
+      await updateClientWhatsApp(client.id, checked)
+      toast.success(checked ? 'Recordatorios WhatsApp activados' : 'Recordatorios WhatsApp desactivados')
+      router.refresh()
+    } catch {
+      toast.error('Error al cambiar la configuración de WhatsApp')
+    } finally {
+      setTogglingWa(false)
     }
   }
 
@@ -385,6 +400,23 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                   onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
                   rows={3}
                   placeholder="Observaciones..."
+                />
+              </div>
+
+              {/* WhatsApp toggle */}
+              <div className="flex items-center justify-between rounded-lg border border-[#E2E8F0] px-4 py-3 bg-[#F8FAFC]">
+                <div>
+                  <p className="text-sm font-medium text-[#0F172A]">Recordatorios por WhatsApp</p>
+                  <p className="text-xs text-[#64748B]">
+                    {client.phone
+                      ? `Se enviarán a ${client.phone}`
+                      : 'Sin teléfono — añade un número para recibir recordatorios'}
+                  </p>
+                </div>
+                <Switch
+                  checked={client.whatsapp_enabled ?? true}
+                  onCheckedChange={handleToggleWhatsApp}
+                  disabled={togglingWa || !client.phone}
                 />
               </div>
 
