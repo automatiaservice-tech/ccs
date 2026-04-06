@@ -76,9 +76,9 @@ export function getStatusLabel(status: string): string {
 export const FIXED_GROUP_RATES = [
   { label: 'TARIFA 1', value: 28 },
   { label: 'TARIFA 2', value: 40 },
-  { label: 'TARIFA VIP', value: 50 },
   { label: 'TARIFA 3', value: 60 },
   { label: 'TARIFA 4', value: 80 },
+  { label: 'TARIFA VIP', value: 50 },
 ]
 
 export function getFixedGroupRateLabel(fee: number | null | undefined): string {
