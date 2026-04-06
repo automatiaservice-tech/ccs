@@ -84,7 +84,7 @@ export async function createClientAction(formData: {
 
 export async function updateClientAction(
   id: string,
-  updates: Partial<Omit<Client, 'id' | 'created_at' | 'profile_type'>>
+  updates: Partial<Omit<Client, 'id' | 'created_at'>>
 ) {
   const supabase = await createClient()
   const { data, error } = await supabase

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { ArrowLeft, Loader2, Save, Receipt, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Receipt, Trash2, AlertTriangle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -88,6 +88,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
     gender: (client.gender || '') as string,
     enrollment_month: existingEnrollment.month,
     enrollment_year: existingEnrollment.year,
+    profile_type: client.profile_type,
   })
 
   // Invoice generation modal
@@ -109,11 +110,16 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
         ? new Date(form.birth_date).toISOString().split('T')[0]
         : null
 
+      const monthlyFee = form.profile_type === 'fixed_group'
+        ? (form.monthly_fee ? parseFloat(form.monthly_fee) : null)
+        : null
+
       await updateClientAction(client.id, {
         name: form.name,
         phone: form.phone || null,
         email: form.email || null,
-        monthly_fee: form.monthly_fee ? parseFloat(form.monthly_fee) : null,
+        profile_type: form.profile_type,
+        monthly_fee: monthlyFee,
         notes: form.notes || null,
         birth_date: birthDate,
         gender: (form.gender || null) as any,
@@ -256,7 +262,32 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                 </div>
                 <div className="space-y-1.5">
                   <Label>Tipo de perfil</Label>
-                  <Input value={getProfileTypeLabel(client.profile_type)} disabled />
+                  <Select
+                    value={form.profile_type}
+                    onValueChange={(v) => {
+                      const next = v as typeof form.profile_type
+                      setForm((p) => ({
+                        ...p,
+                        profile_type: next,
+                        monthly_fee: next !== 'fixed_group' ? '' : p.monthly_fee,
+                      }))
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
+                      <SelectItem value="variable_group">Grupo Personal Variable</SelectItem>
+                      <SelectItem value="individual">Personal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {form.profile_type !== client.profile_type && (
+                    <p className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-1">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      Cambiar el tipo de cliente puede afectar a las sesiones asignadas y a la facturación futura
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -320,7 +351,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                   </div>
                 </div>
 
-                {client.profile_type === 'fixed_group' && (
+                {form.profile_type === 'fixed_group' && (
                   <div className="space-y-1.5">
                     <Label>Tarifa mensual</Label>
                     <Select
