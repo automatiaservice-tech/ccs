@@ -103,6 +103,7 @@ export interface Expense {
   amount: number
   category: ExpenseCategory
   date: string
+  document_url: string | null
   created_at: string
 }
 

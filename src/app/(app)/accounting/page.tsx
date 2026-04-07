@@ -1,4 +1,4 @@
-import { getExpenses, getAccountingSummary } from '@/lib/actions/accounting'
+import { getExpenses, getAccountingSummary, checkExpensesBucket } from '@/lib/actions/accounting'
 import { AccountingClient } from './accounting-client'
 
 export default async function AccountingPage({
@@ -17,14 +17,15 @@ export default async function AccountingPage({
     netProfit: 0,
     incomeByType: [
       { name: 'Grupo Fijo', value: 0, color: '#3b82f6' },
-      { name: 'Grupo Variable', value: 0, color: '#22c55e' },
-      { name: 'Individual', value: 0, color: '#f97316' },
+      { name: 'Grupo Personal Variable', value: 0, color: '#22c55e' },
+      { name: 'Personal', value: 0, color: '#f97316' },
     ],
   }
 
-  const [expenses, summary] = await Promise.all([
+  const [expenses, summary, bucketExists] = await Promise.all([
     getExpenses(month, year).catch(() => []),
     getAccountingSummary(month, year).catch(() => DEFAULT_SUMMARY),
+    checkExpensesBucket().catch(() => false),
   ])
 
   return (
@@ -35,10 +36,12 @@ export default async function AccountingPage({
       </div>
 
       <AccountingClient
+        key={`${month}-${year}`}
         initialExpenses={expenses}
         summary={summary}
         month={month}
         year={year}
+        bucketExists={bucketExists}
       />
     </div>
   )
