@@ -9,10 +9,9 @@ function createAdminClient() {
 }
 
 function getAppUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-  )
+  // Prefer VERCEL_URL (set automatically by Vercel) to avoid localhost misconfiguration
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 }
 
 async function sendWhatsApp(
@@ -97,6 +96,7 @@ export async function GET(req: NextRequest) {
     status: 'sent' | 'failed'
     error_message: string | null
   }[] = []
+  const errors: { client: string; phone: string; error: string }[] = []
 
   for (const session of sessions ?? []) {
     for (const sc of (session as any).session_clients ?? []) {
@@ -116,8 +116,12 @@ export async function GET(req: NextRequest) {
         error_message: result.error ?? null,
       })
 
-      if (result.success) sent++
-      else failed++
+      if (result.success) {
+        sent++
+      } else {
+        failed++
+        errors.push({ client: client.name, phone: client.phone, error: result.error ?? 'Error desconocido' })
+      }
     }
   }
 
@@ -131,5 +135,6 @@ export async function GET(req: NextRequest) {
     sent,
     failed,
     total: logs.length,
+    errors,
   })
 }

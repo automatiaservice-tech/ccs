@@ -1,14 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { toast } from 'sonner'
+import { useState } from 'react'
 import {
   MessageCircle,
   Send,
   CheckCircle,
   XCircle,
   Loader2,
-  RefreshCw,
   Settings,
   Clock,
 } from 'lucide-react'
@@ -17,8 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { formatDate } from '@/lib/utils'
-import { triggerRemindersNow, updateWhatsAppConfig } from '@/lib/actions/whatsapp'
+import { updateWhatsAppConfig } from '@/lib/actions/whatsapp'
 
 interface WhatsAppLog {
   id: string
@@ -36,6 +33,13 @@ interface WhatsAppConfig {
   send_hour_utc: number
 }
 
+interface TriggerResult {
+  sent: number
+  failed: number
+  total: number
+  errors: { client: string; phone: string; error: string }[]
+}
+
 interface Props {
   initialLogs: WhatsAppLog[]
   initialConfig: WhatsAppConfig | null
@@ -44,40 +48,49 @@ interface Props {
 export function WhatsAppClient({ initialLogs, initialConfig }: Props) {
   const [logs, setLogs] = useState(initialLogs)
   const [config, setConfig] = useState(initialConfig)
-  const [isPending, startTransition] = useTransition()
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<TriggerResult | null>(null)
+  const [triggerError, setTriggerError] = useState<string | null>(null)
 
   const sentCount = logs.filter((l) => l.status === 'sent').length
   const failedCount = logs.filter((l) => l.status === 'failed').length
 
-  const handleTriggerNow = () => {
-    startTransition(async () => {
-      try {
-        const result = await triggerRemindersNow()
-        toast.success(
-          `Recordatorios enviados: ${result.sent} enviados, ${result.failed} fallidos`
-        )
-        // Reload page data via navigation refresh
-        window.location.reload()
-      } catch (err: any) {
-        toast.error(err?.message || 'Error al enviar recordatorios')
+  const handleTriggerNow = async () => {
+    setLoading(true)
+    setResult(null)
+    setTriggerError(null)
+
+    try {
+      const res = await fetch('/api/whatsapp/trigger', { method: 'POST' })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setTriggerError(data?.error || `Error HTTP ${res.status}`)
+        return
       }
-    })
+
+      setResult(data as TriggerResult)
+
+      // Reload after a short delay so the user can read the result
+      setTimeout(() => window.location.reload(), 3000)
+    } catch (err: any) {
+      setTriggerError(err.message || 'Error de red')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleGlobalToggle = (enabled: boolean) => {
-    startTransition(async () => {
-      try {
-        await updateWhatsAppConfig({ global_enabled: enabled })
-        setConfig((prev) => prev ? { ...prev, global_enabled: enabled } : prev)
-        toast.success(enabled ? 'Recordatorios activados' : 'Recordatorios desactivados')
-      } catch (err: any) {
-        toast.error(err?.message || 'Error al actualizar la configuración')
-      }
-    })
+  const handleGlobalToggle = async (enabled: boolean) => {
+    try {
+      await updateWhatsAppConfig({ global_enabled: enabled })
+      setConfig((prev) => (prev ? { ...prev, global_enabled: enabled } : prev))
+    } catch (err: any) {
+      alert(err?.message || 'Error al actualizar la configuración')
+    }
   }
 
   const sendHourSpain = config
-    ? (config.send_hour_utc + 2) % 24  // UTC+2 (verano); UTC+1 en invierno
+    ? (config.send_hour_utc + 2) % 24 // UTC+2 (verano); UTC+1 en invierno
     : 18
 
   return (
@@ -88,8 +101,8 @@ export function WhatsAppClient({ initialLogs, initialConfig }: Props) {
           <h1 className="text-2xl font-bold text-[#0F172A]">WhatsApp</h1>
           <p className="text-[#64748B] text-sm mt-1">Recordatorios automáticos para clientes</p>
         </div>
-        <Button onClick={handleTriggerNow} disabled={isPending}>
-          {isPending ? (
+        <Button onClick={handleTriggerNow} disabled={loading}>
+          {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Send className="h-4 w-4" />
@@ -97,6 +110,48 @@ export function WhatsAppClient({ initialLogs, initialConfig }: Props) {
           Enviar recordatorios ahora
         </Button>
       </div>
+
+      {/* Trigger result panel */}
+      {triggerError && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4 flex items-start gap-3">
+            <XCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-red-700">Error al enviar</p>
+              <p className="text-sm text-red-600 mt-0.5">{triggerError}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {result && (
+        <Card className={result.failed === 0 ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+              <p className="text-sm font-medium text-[#0F172A]">
+                Proceso completado — {result.total} cliente{result.total !== 1 ? 's' : ''} procesado{result.total !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="flex gap-4 text-sm">
+              <span className="text-green-700 font-medium">✓ {result.sent} enviado{result.sent !== 1 ? 's' : ''}</span>
+              {result.failed > 0 && (
+                <span className="text-red-600 font-medium">✗ {result.failed} fallido{result.failed !== 1 ? 's' : ''}</span>
+              )}
+            </div>
+            {result.errors.length > 0 && (
+              <div className="space-y-1 border-t border-amber-200 pt-2">
+                {result.errors.map((e, i) => (
+                  <p key={i} className="text-xs text-red-600">
+                    <span className="font-medium">{e.client}</span> ({e.phone}): {e.error}
+                  </p>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-[#64748B]">La página se actualizará en unos segundos…</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -243,7 +298,6 @@ export function WhatsAppClient({ initialLogs, initialConfig }: Props) {
             <Switch
               checked={config?.global_enabled ?? true}
               onCheckedChange={handleGlobalToggle}
-              disabled={isPending}
             />
           </div>
 
@@ -253,7 +307,8 @@ export function WhatsAppClient({ initialLogs, initialConfig }: Props) {
               Plantilla de mensaje
             </Label>
             <p className="text-xs text-[#64748B] mt-1 mb-2">
-              Gestionada en Meta Business Suite · Nombre: <code className="bg-slate-100 px-1 rounded">{process.env.NEXT_PUBLIC_WA_TEMPLATE ?? 'recordatorio'}</code>
+              Gestionada en Meta Business Suite · Nombre:{' '}
+              <code className="bg-slate-100 px-1 rounded">recordatorio</code>
             </p>
             <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-3 text-sm text-[#0F172A]">
               Hola <span className="font-medium">[nombre del cliente]</span>, te recordamos
@@ -272,8 +327,10 @@ export function WhatsAppClient({ initialLogs, initialConfig }: Props) {
               Hora de envío
             </Label>
             <p className="text-xs text-[#64748B] mt-1">
-              Actualmente configurado a las <strong>{sendHourSpain}:00 (hora española de verano)</strong>.
-              Para cambiar la hora, modifica el campo <code className="bg-slate-100 px-1 rounded">schedule</code> en{' '}
+              Actualmente configurado a las{' '}
+              <strong>{sendHourSpain}:00 (hora española de verano)</strong>.
+              Para cambiar la hora, modifica el campo{' '}
+              <code className="bg-slate-100 px-1 rounded">schedule</code> en{' '}
               <code className="bg-slate-100 px-1 rounded">vercel.json</code> y la columna{' '}
               <code className="bg-slate-100 px-1 rounded">send_hour_utc</code> en la tabla{' '}
               <code className="bg-slate-100 px-1 rounded">whatsapp_config</code>.
