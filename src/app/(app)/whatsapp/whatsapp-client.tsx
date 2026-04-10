@@ -190,13 +190,17 @@ export function WhatsAppClient({ initialLogs, initialConfig }: Props) {
                             Enviado
                           </Badge>
                         ) : (
-                          <Badge
-                            className="bg-red-50 text-red-600 border-red-200 gap-1"
-                            title={log.error_message ?? ''}
-                          >
-                            <XCircle className="h-3 w-3" />
-                            Error
-                          </Badge>
+                          <div className="flex flex-col gap-1">
+                            <Badge className="bg-red-50 text-red-600 border-red-200 gap-1 w-fit">
+                              <XCircle className="h-3 w-3" />
+                              Error
+                            </Badge>
+                            {log.error_message && (
+                              <span className="text-xs text-red-500 max-w-[200px] break-words">
+                                {log.error_message}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-[#64748B]">

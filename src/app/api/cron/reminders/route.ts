@@ -28,6 +28,28 @@ async function sendWhatsApp(
     return { success: false, error: 'WhatsApp credentials not configured' }
   }
 
+  const requestBody = {
+    messaging_product: 'whatsapp',
+    to,
+    type: 'template',
+    template: {
+      name: templateName,
+      language: { code: 'es' },
+      components: [
+        {
+          type: 'body',
+          parameters: [
+            { type: 'text', text: clientName },
+            { type: 'text', text: sessionTime },
+          ],
+        },
+      ],
+    },
+  }
+
+  console.log('[WhatsApp] Sending to phone:', to)
+  console.log('[WhatsApp] Request body:', JSON.stringify(requestBody, null, 2))
+
   try {
     const res = await fetch(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
@@ -37,33 +59,30 @@ async function sendWhatsApp(
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to,
-          type: 'template',
-          template: {
-            name: templateName,
-            language: { code: 'es' },
-            components: [
-              {
-                type: 'body',
-                parameters: [
-                  { type: 'text', text: clientName },
-                  { type: 'text', text: sessionTime },
-                ],
-              },
-            ],
-          },
-        }),
+        body: JSON.stringify(requestBody),
       }
     )
 
     const data = await res.json()
+    console.log('[WhatsApp] Response status:', res.status)
+    console.log('[WhatsApp] Response body:', JSON.stringify(data, null, 2))
+
     if (!res.ok) {
-      return { success: false, error: data?.error?.message || `HTTP ${res.status}` }
+      const errMsg = data?.error?.message || data?.error?.error_data?.details || `HTTP ${res.status}`
+      console.error('[WhatsApp] API error:', errMsg)
+      return { success: false, error: errMsg }
     }
+
+    const messageId = data?.messages?.[0]?.id
+    if (!messageId) {
+      console.error('[WhatsApp] No message ID in response:', JSON.stringify(data))
+      return { success: false, error: 'Meta no devolvió message ID' }
+    }
+
+    console.log('[WhatsApp] Sent OK, message ID:', messageId)
     return { success: true }
   } catch (err: any) {
+    console.error('[WhatsApp] Fetch error:', err.message)
     return { success: false, error: err.message }
   }
 }
