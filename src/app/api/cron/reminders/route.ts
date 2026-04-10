@@ -8,81 +8,30 @@ function createAdminClient() {
   )
 }
 
-function formatPhone(raw: string): string {
-  let cleaned = raw.replace(/[\s\-().]/g, '')
-  if (cleaned.startsWith('00')) cleaned = '+' + cleaned.slice(2)
-  if (!cleaned.startsWith('+')) cleaned = '+34' + cleaned
-  return cleaned
+function getAppUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+  )
 }
 
 async function sendWhatsApp(
-  to: string,
+  phone: string,
   clientName: string,
   sessionTime: string
 ): Promise<{ success: boolean; error?: string }> {
-  const token = process.env.WHATSAPP_TOKEN
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
-  const templateName = process.env.WHATSAPP_TEMPLATE_NAME
-
-  if (!token || !phoneNumberId || !templateName) {
-    return { success: false, error: 'WhatsApp credentials not configured' }
-  }
-
-  const requestBody = {
-    messaging_product: 'whatsapp',
-    to,
-    type: 'template',
-    template: {
-      name: templateName,
-      language: { code: 'es' },
-      components: [
-        {
-          type: 'body',
-          parameters: [
-            { type: 'text', text: clientName },
-            { type: 'text', text: sessionTime },
-          ],
-        },
-      ],
-    },
-  }
-
-  console.log('[WhatsApp] Sending to phone:', to)
-  console.log('[WhatsApp] Request body:', JSON.stringify(requestBody, null, 2))
-
   try {
-    const res = await fetch(
-      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      }
-    )
-
+    const res = await fetch(`${getAppUrl()}/api/whatsapp/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, clientName, sessionTime }),
+    })
     const data = await res.json()
-    console.log('[WhatsApp] Response status:', res.status)
-    console.log('[WhatsApp] Response body:', JSON.stringify(data, null, 2))
-
     if (!res.ok) {
-      const errMsg = data?.error?.message || data?.error?.error_data?.details || `HTTP ${res.status}`
-      console.error('[WhatsApp] API error:', errMsg)
-      return { success: false, error: errMsg }
+      return { success: false, error: data?.error || `HTTP ${res.status}` }
     }
-
-    const messageId = data?.messages?.[0]?.id
-    if (!messageId) {
-      console.error('[WhatsApp] No message ID in response:', JSON.stringify(data))
-      return { success: false, error: 'Meta no devolvió message ID' }
-    }
-
-    console.log('[WhatsApp] Sent OK, message ID:', messageId)
     return { success: true }
   } catch (err: any) {
-    console.error('[WhatsApp] Fetch error:', err.message)
     return { success: false, error: err.message }
   }
 }
@@ -157,13 +106,12 @@ export async function GET(req: NextRequest) {
       if (!client.phone) continue
       if (client.whatsapp_enabled === false) continue
 
-      const phone = formatPhone(client.phone)
-      const result = await sendWhatsApp(phone, client.name, session.time)
+      const result = await sendWhatsApp(client.phone, client.name, session.time)
 
       logs.push({
         client_id: client.id,
         session_id: session.id,
-        phone,
+        phone: client.phone,
         status: result.success ? 'sent' : 'failed',
         error_message: result.error ?? null,
       })
