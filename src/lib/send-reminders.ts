@@ -96,6 +96,13 @@ export interface RemindersResult {
 }
 
 export async function runReminders(): Promise<RemindersResult> {
+  console.log('[WhatsApp] Variables check:', {
+    hasToken: !!process.env.WHATSAPP_TOKEN,
+    hasPhoneId: !!process.env.WHATSAPP_PHONE_NUMBER_ID,
+    hasTemplate: !!process.env.WHATSAPP_TEMPLATE_NAME,
+    tokenLength: process.env.WHATSAPP_TOKEN?.length || 0,
+  })
+
   const supabase = createAdminClient()
 
   const { data: config } = await supabase
