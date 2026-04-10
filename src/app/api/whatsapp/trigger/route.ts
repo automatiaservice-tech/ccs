@@ -1,27 +1,15 @@
 import { NextResponse } from 'next/server'
+import { runReminders } from '@/lib/send-reminders'
 
 // POST /api/whatsapp/trigger
-// Called from the /whatsapp page button. Protected by the Supabase auth proxy —
-// no need to expose CRON_SECRET to the browser. Delegates to the cron handler
-// which holds the actual business logic.
+// Called from the /whatsapp page button. Calls runReminders() directly —
+// no internal HTTP call, no secret needed from the browser.
 export async function POST() {
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
-
-  const res = await fetch(`${baseUrl}/api/cron/reminders`, {
-    headers: { Authorization: `Bearer ${process.env.CRON_SECRET ?? ''}` },
-    cache: 'no-store',
-  })
-
-  const data = await res.json().catch(() => ({}))
-
-  if (!res.ok) {
-    return NextResponse.json(
-      { error: data?.error || `HTTP ${res.status}` },
-      { status: res.status }
-    )
+  try {
+    const result = await runReminders()
+    return NextResponse.json(result)
+  } catch (err: any) {
+    console.error('[whatsapp/trigger]', err.message)
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
-
-  return NextResponse.json(data)
 }
