@@ -39,6 +39,15 @@ async function sendToMeta(
     template: {
       name: templateName,
       language: { code: 'es' },
+      components: [
+        {
+          type: 'body',
+          parameters: [
+            { type: 'text', text: clientName },
+            { type: 'text', text: sessionTime },
+          ],
+        },
+      ],
     },
   }
 
@@ -64,11 +73,20 @@ async function sendToMeta(
     console.log('[WhatsApp] Respuesta Meta:', JSON.stringify(data))
 
     if (!res.ok) {
+      console.error('[WhatsApp] Error completo Meta:', JSON.stringify({
+        status: res.status,
+        code: data?.error?.code,
+        message: data?.error?.message,
+        type: data?.error?.type,
+        error_subcode: data?.error?.error_subcode,
+        error_data: data?.error?.error_data,
+        fbtrace_id: data?.error?.fbtrace_id,
+      }, null, 2))
       const errMsg =
-        data?.error?.message ||
         data?.error?.error_data?.details ||
+        data?.error?.message ||
         `HTTP ${res.status}`
-      return { success: false, error: errMsg }
+      return { success: false, error: `(#${data?.error?.code}) ${errMsg}` }
     }
 
     const messageId = data?.messages?.[0]?.id
