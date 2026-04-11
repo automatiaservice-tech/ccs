@@ -51,10 +51,6 @@ async function sendToMeta(
     },
   }
 
-  console.log('[WhatsApp] Enviando a:', to)
-  console.log('[WhatsApp] Template:', templateName, '| Language: es')
-  console.log('[WhatsApp] Request body:', JSON.stringify(body))
-
   try {
     const res = await fetch(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
@@ -69,23 +65,13 @@ async function sendToMeta(
     )
 
     const data = await res.json()
-    console.log('[WhatsApp] Response status:', res.status)
-    console.log('[WhatsApp] Respuesta Meta:', JSON.stringify(data))
 
     if (!res.ok) {
-      console.error('[WhatsApp] Error completo Meta:', JSON.stringify({
-        status: res.status,
-        code: data?.error?.code,
-        message: data?.error?.message,
-        type: data?.error?.type,
-        error_subcode: data?.error?.error_subcode,
-        error_data: data?.error?.error_data,
-        fbtrace_id: data?.error?.fbtrace_id,
-      }, null, 2))
       const errMsg =
         data?.error?.error_data?.details ||
         data?.error?.message ||
         `HTTP ${res.status}`
+      console.error('[WhatsApp] Error Meta:', JSON.stringify(data?.error))
       return { success: false, error: `(#${data?.error?.code}) ${errMsg}` }
     }
 
@@ -110,13 +96,6 @@ export interface RemindersResult {
 }
 
 export async function runReminders(): Promise<RemindersResult> {
-  console.log('[WhatsApp] Variables check:', {
-    hasToken: !!process.env.WHATSAPP_TOKEN,
-    hasPhoneId: !!process.env.WHATSAPP_PHONE_NUMBER_ID,
-    hasTemplate: !!process.env.WHATSAPP_TEMPLATE_NAME,
-    tokenLength: process.env.WHATSAPP_TOKEN?.length || 0,
-  })
-
   const supabase = createAdminClient()
 
   const { data: config } = await supabase
