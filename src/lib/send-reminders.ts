@@ -43,8 +43,8 @@ async function sendToMeta(
         {
           type: 'body',
           parameters: [
-            { type: 'text', text: clientName },
-            { type: 'text', text: sessionTime },
+            { type: 'text', parameter_name: 'nombre', text: clientName },
+            { type: 'text', parameter_name: 'hora', text: sessionTime },
           ],
         },
       ],
