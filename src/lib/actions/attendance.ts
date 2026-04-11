@@ -113,7 +113,7 @@ export async function getDashboardStats() {
 
   // Total gastos del mes
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
-  const endDate = `${year}-${String(month).padStart(2, '0')}-31`
+  const endDate = new Date(year, month, 0).toISOString().split('T')[0]
   const { data: expensesData } = await supabase
     .from('expenses')
     .select('amount')
@@ -166,7 +166,7 @@ export async function getDashboardStats() {
       .from('expenses')
       .select('amount')
       .gte('date', `${y}-${String(m).padStart(2, '0')}-01`)
-      .lte('date', `${y}-${String(m).padStart(2, '0')}-31`)
+      .lte('date', new Date(y, m, 0).toISOString().split('T')[0])
 
     chartData.push({
       month: monthName,

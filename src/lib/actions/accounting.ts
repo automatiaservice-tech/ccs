@@ -56,6 +56,7 @@ export async function createExpense(formData: {
 
   if (error) throw new Error(error.message)
   revalidatePath('/accounting')
+  revalidatePath('/dashboard')
   return data as Expense
 }
 
@@ -73,6 +74,7 @@ export async function updateExpense(
 
   if (error) throw new Error(error.message)
   revalidatePath('/accounting')
+  revalidatePath('/dashboard')
   return data as Expense
 }
 
@@ -81,6 +83,7 @@ export async function deleteExpense(id: string) {
   const { error } = await supabase.from('expenses').delete().eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/accounting')
+  revalidatePath('/dashboard')
 }
 
 // ── Document storage ──────────────────────────────────────────────────────────
