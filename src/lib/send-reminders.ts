@@ -156,7 +156,8 @@ export async function runReminders(): Promise<RemindersResult> {
       if (client.whatsapp_enabled === false) continue
 
       const phone = formatPhone(client.phone)
-      const result = await sendToMeta(phone, client.name, session.time)
+      const sessionTime = session.time?.slice(0, 5) ?? session.time
+      const result = await sendToMeta(phone, client.name, sessionTime)
 
       logs.push({
         client_id: client.id,
