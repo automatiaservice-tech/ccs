@@ -39,15 +39,6 @@ async function sendToMeta(
     template: {
       name: templateName,
       language: { code: 'es' },
-      components: [
-        {
-          type: 'body',
-          parameters: [
-            { type: 'text', text: clientName },
-            { type: 'text', text: sessionTime },
-          ],
-        },
-      ],
     },
   }
 
