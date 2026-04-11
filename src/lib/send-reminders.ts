@@ -24,7 +24,11 @@ async function sendToMeta(
   const templateName = process.env.WHATSAPP_TEMPLATE_NAME
 
   if (!token || !phoneNumberId || !templateName) {
-    return { success: false, error: 'WhatsApp credentials not configured' }
+    const waKeys = Object.keys(process.env).filter(k => k.includes('WHATSAPP')).join(',')
+    return {
+      success: false,
+      error: `Credentials missing - token:${!!token} phoneId:${!!phoneNumberId} template:${!!templateName} - env keys: ${waKeys || '(none)'}`,
+    }
   }
 
   const body = {
