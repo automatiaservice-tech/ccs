@@ -24,11 +24,12 @@ async function sendToMeta(
   const templateName = process.env.WHATSAPP_TEMPLATE_NAME
 
   if (!token || !phoneNumberId || !templateName) {
-    const waKeys = Object.keys(process.env).filter(k => k.includes('WHATSAPP')).join(',')
-    return {
-      success: false,
-      error: `Credentials missing - token:${!!token} phoneId:${!!phoneNumberId} template:${!!templateName} - env keys: ${waKeys || '(none)'}`,
-    }
+    const missing = [
+      !token && 'WHATSAPP_TOKEN',
+      !phoneNumberId && 'WHATSAPP_PHONE_NUMBER_ID',
+      !templateName && 'WHATSAPP_TEMPLATE_NAME',
+    ].filter(Boolean).join(', ')
+    return { success: false, error: `Variable(s) no configurada(s) en Vercel: ${missing}` }
   }
 
   const body = {
