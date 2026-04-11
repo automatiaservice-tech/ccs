@@ -38,7 +38,7 @@ async function sendToMeta(
     type: 'template',
     template: {
       name: templateName,
-      language: { code: 'es_ES' },
+      language: { code: 'es' },
       components: [
         {
           type: 'body',
