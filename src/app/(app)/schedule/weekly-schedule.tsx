@@ -17,13 +17,32 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { cn, getDayName, PROFILE_TYPE_LABELS, getProfileTypeBadgeColor } from '@/lib/utils'
+import { cn, getDayName, PROFILE_TYPE_LABELS, getProfileTypeBadgeColor, getFixedGroupRateLabel } from '@/lib/utils'
 import {
   createSessionAction,
   updateSessionAction,
   deleteSessionAction,
   updateSessionClients,
 } from '@/lib/actions/sessions'
+
+// ── Price helpers ─────────────────────────────────────────────────────────────
+// Convert our day convention (0=Mon…6=Sun) to JS Date.getDay() (0=Sun…6=Sat)
+function toJsDay(ourDay: number): number {
+  return ourDay === 6 ? 0 : ourDay + 1
+}
+
+function countOccurrencesInCurrentMonth(dayOfWeek: number): number {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() // 0-based
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const jsDay = toJsDay(dayOfWeek)
+  let count = 0
+  for (let d = 1; d <= daysInMonth; d++) {
+    if (new Date(year, month, d).getDay() === jsDay) count++
+  }
+  return count
+}
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6]
 
@@ -52,6 +71,7 @@ interface Client {
   name: string
   active: boolean
   profile_type: string
+  monthly_fee?: number | null
 }
 
 interface Session {
@@ -61,6 +81,7 @@ interface Session {
   time: string
   session_type: string
   max_capacity: number | null
+  session_price: number | null
   session_clients?: Array<{
     client_id: string
     clients?: Client
@@ -73,6 +94,7 @@ const emptyForm = {
   time: '09:00',
   session_type: 'fixed_group',
   max_capacity: '',
+  session_price: '40',
 }
 
 const DAYS_SHORT = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
@@ -80,6 +102,39 @@ const DAYS_SHORT = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 function todayDayIndex() {
   const js = new Date().getDay() // 0=Sun
   return js === 0 ? 6 : js - 1 // Convert to 0=Mon…6=Sun
+}
+
+// ── Session price display helpers ─────────────────────────────────────────────
+function SessionPriceLine({ session }: { session: Session }) {
+  const clientCount = session.session_clients?.length || 0
+  if (clientCount === 0) return null
+
+  if (session.session_type === 'individual') {
+    const price = session.session_price ?? 40
+    const perPerson = Math.round((price / clientCount) * 100) / 100
+    return (
+      <p className="text-xs text-orange-600 mt-1">
+        💶 {perPerson.toFixed(2).replace('.', ',')}€/persona ({clientCount} participante{clientCount !== 1 ? 's' : ''})
+      </p>
+    )
+  }
+
+  if (session.session_type === 'fixed_group') {
+    const occurrences = countOccurrencesInCurrentMonth(session.day_of_week)
+    let total = 0
+    for (const sc of session.session_clients || []) {
+      const fee = sc.clients?.monthly_fee
+      if (fee) total += Math.round((fee / occurrences) * 100) / 100
+    }
+    if (total === 0) return null
+    return (
+      <p className="text-xs text-blue-600 mt-1">
+        💶 Total sesión: {total.toFixed(2).replace('.', ',')}€
+      </p>
+    )
+  }
+
+  return null
 }
 
 // ── Reusable day session list ─────────────────────────────────────────────────
@@ -110,6 +165,7 @@ function DaySessionList({
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-900 leading-tight">{s.name}</p>
                 <p className="text-sm text-[#64748B] mt-1">{s.time.substring(0, 5)}</p>
+                <SessionPriceLine session={s} />
               </div>
               <div className="flex flex-col items-end gap-2 shrink-0">
                 <Badge className={cn('text-[10px] px-1.5 py-0', SESSION_TYPE_BADGE[s.session_type])}>
@@ -174,6 +230,116 @@ function DayNav({
   )
 }
 
+// ── Individual session price editor ──────────────────────────────────────────
+function IndividualPriceEditor({
+  session,
+  participantCount,
+  onSaved,
+}: {
+  session: Session
+  participantCount: number
+  onSaved: () => void
+}) {
+  const [price, setPrice] = useState(String(session.session_price ?? 40))
+  const [saving, setSaving] = useState(false)
+
+  const priceNum = parseFloat(price) || 0
+  const perPerson = participantCount > 0 ? Math.round((priceNum / participantCount) * 100) / 100 : priceNum
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await updateSessionAction(session.id, { session_price: priceNum } as any)
+      toast.success('Precio actualizado')
+      onSaved()
+    } catch {
+      toast.error('Error al guardar el precio')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-[#E2E8F0] p-3 space-y-2 bg-orange-50/40">
+      <p className="text-[10px] text-[#64748B] uppercase tracking-wide font-semibold">Precio por sesión</p>
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          className="w-28 h-8 text-sm"
+        />
+        <span className="text-sm text-slate-500">€</span>
+        <Button size="sm" onClick={handleSave} disabled={saving} className="h-8 ml-auto">
+          {saving && <Loader2 className="h-3 w-3 animate-spin" />}
+          Guardar
+        </Button>
+      </div>
+      {participantCount > 0 && (
+        <p className="text-xs text-orange-600">
+          💶 {perPerson.toFixed(2).replace('.', ',')}€/persona ({participantCount} participante{participantCount !== 1 ? 's' : ''})
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ── Fixed group cost breakdown ────────────────────────────────────────────────
+function FixedGroupCostBreakdown({
+  session,
+  participants,
+}: {
+  session: Session
+  participants: Client[]
+}) {
+  const occurrences = countOccurrencesInCurrentMonth(session.day_of_week)
+  const rows = participants.map((c) => {
+    const fee = c.monthly_fee || 0
+    const costPerSession = fee > 0 ? Math.round((fee / occurrences) * 100) / 100 : 0
+    return { client: c, fee, costPerSession }
+  })
+  const total = rows.reduce((s, r) => s + r.costPerSession, 0)
+
+  return (
+    <div className="rounded-lg border border-[#E2E8F0] overflow-hidden">
+      <p className="text-[10px] text-[#64748B] uppercase tracking-wide font-semibold px-3 py-2 bg-slate-50 border-b border-[#E2E8F0]">
+        💶 Coste por sesión — mes actual ({occurrences} sesiones)
+      </p>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-[#F1F5F9] bg-[#F8FAFC]">
+            <th className="text-left px-3 py-2 text-[10px] text-[#64748B] uppercase font-medium">Cliente</th>
+            <th className="text-left px-3 py-2 text-[10px] text-[#64748B] uppercase font-medium">Tarifa</th>
+            <th className="text-right px-3 py-2 text-[10px] text-[#64748B] uppercase font-medium">€/sesión</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ client, fee, costPerSession }) => (
+            <tr key={client.id} className="border-b border-[#F1F5F9]">
+              <td className="px-3 py-2 text-slate-800">{client.name}</td>
+              <td className="px-3 py-2 text-[#64748B] text-xs">{getFixedGroupRateLabel(fee)}</td>
+              <td className="px-3 py-2 text-right text-slate-700 font-medium">
+                {costPerSession.toFixed(2).replace('.', ',')}€
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t border-[#E2E8F0] bg-blue-50/50">
+            <td className="px-3 py-2 font-semibold text-slate-800">Total</td>
+            <td />
+            <td className="px-3 py-2 text-right font-bold text-blue-700">
+              {total.toFixed(2).replace('.', ',')}€
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  )
+}
+
 export function WeeklySchedule({
   initialSessions,
   allClients,
@@ -232,6 +398,7 @@ export function WeeklySchedule({
       time: session.time.substring(0, 5),
       session_type: session.session_type,
       max_capacity: session.max_capacity?.toString() || '',
+      session_price: (session.session_price ?? 40).toString(),
     })
     setShowFormModal(true)
   }
@@ -246,6 +413,7 @@ export function WeeklySchedule({
         time: form.time + ':00',
         session_type: form.session_type as any,
         max_capacity: form.max_capacity ? parseInt(form.max_capacity) : undefined,
+        session_price: form.session_price ? parseFloat(form.session_price) : 40,
       }
       if (editSession) {
         await updateSessionAction(editSession.id, data)
@@ -434,6 +602,23 @@ export function WeeklySchedule({
                               <Users className="h-3 w-3" />
                               <span className="text-[10px]">{clientCount}</span>
                             </div>
+                            {clientCount > 0 && s.session_type === 'individual' && (
+                              <p className="text-[10px] text-orange-600 mt-1 leading-tight">
+                                💶 {(Math.round(((s.session_price ?? 40) / clientCount) * 100) / 100).toFixed(2).replace('.', ',')}€/p
+                              </p>
+                            )}
+                            {clientCount > 0 && s.session_type === 'fixed_group' && (() => {
+                              const occ = countOccurrencesInCurrentMonth(s.day_of_week)
+                              const total = (s.session_clients || []).reduce((sum, sc) => {
+                                const fee = sc.clients?.monthly_fee
+                                return sum + (fee ? Math.round((fee / occ) * 100) / 100 : 0)
+                              }, 0)
+                              return total > 0 ? (
+                                <p className="text-[10px] text-blue-600 mt-1 leading-tight">
+                                  💶 {total.toFixed(2).replace('.', ',')}€
+                                </p>
+                              ) : null
+                            })()}
                           </button>
                         )
                       })
@@ -603,6 +788,23 @@ export function WeeklySchedule({
                     </div>
                   </div>
 
+                  {/* ── Precio (Individual) ── */}
+                  {detailSession.session_type === 'individual' && (
+                    <IndividualPriceEditor
+                      session={detailSession}
+                      participantCount={participantIds.length}
+                      onSaved={() => router.refresh()}
+                    />
+                  )}
+
+                  {/* ── Desglose coste (Grupo Fijo) ── */}
+                  {detailSession.session_type === 'fixed_group' && currentParticipants.length > 0 && (
+                    <FixedGroupCostBreakdown
+                      session={detailSession}
+                      participants={currentParticipants}
+                    />
+                  )}
+
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -705,6 +907,22 @@ export function WeeklySchedule({
                 />
               </div>
             </div>
+            {form.session_type === 'individual' && (
+              <div className="space-y-1.5">
+                <Label>Precio por sesión (€)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.session_price}
+                  onChange={(e) => setForm((p) => ({ ...p, session_price: e.target.value }))}
+                  placeholder="40"
+                />
+                <p className="text-xs text-[#64748B]">
+                  Precio total de la sesión. Se divide entre los participantes asignados.
+                </p>
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowFormModal(false)}>
                 Cancelar

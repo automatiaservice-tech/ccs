@@ -206,7 +206,7 @@ export async function getInvoices(filters?: {
   const supabase = await createClient()
   let query = supabase
     .from('invoices')
-    .select('*, clients(name, email)')
+    .select('*, clients(name, email, bank_account)')
     .order('year', { ascending: false })
     .order('month', { ascending: false })
     .order('created_at', { ascending: false })
@@ -224,7 +224,7 @@ export async function getInvoiceById(id: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('invoices')
-    .select('*, clients(name, email, phone), invoice_lines(*)')
+    .select('*, clients(name, email, phone, bank_account), invoice_lines(*)')
     .eq('id', id)
     .single()
 
@@ -344,9 +344,19 @@ export async function generateClientInvoice(
   return invoice
 }
 
-export async function updateInvoiceStatus(id: string, status: InvoiceStatus) {
+export async function updateInvoiceStatus(
+  id: string,
+  status: InvoiceStatus,
+  paymentMethod?: 'efectivo' | 'transferencia',
+  paymentReference?: string
+) {
   const supabase = await createClient()
-  const { error } = await supabase.from('invoices').update({ status }).eq('id', id)
+  const updates: Record<string, unknown> = { status }
+  if (status === 'paid') {
+    if (paymentMethod) updates.payment_method = paymentMethod
+    if (paymentReference !== undefined) updates.payment_reference = paymentReference || null
+  }
+  const { error } = await supabase.from('invoices').update(updates).eq('id', id)
   if (error) throw new Error(`Error updating invoice status: ${error.message}`)
   revalidatePath('/billing')
   revalidatePath(`/billing/${id}`)

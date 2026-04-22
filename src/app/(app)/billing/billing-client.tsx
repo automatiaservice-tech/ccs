@@ -134,14 +134,25 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#0F172A] truncate">{inv.clients?.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-[#0F172A] truncate">{inv.clients?.name}</p>
+                      {inv.clients?.bank_account && (
+                        <span className="text-[10px] text-[#64748B] bg-slate-100 rounded px-1.5 py-0.5 shrink-0">
+                          🏦 ****{inv.clients.bank_account.slice(-4)}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-[#64748B] mt-0.5">
                       {getMonthName(inv.month)} {inv.year} · {inv.invoice_number || '—'}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
                     <span className="text-sm font-bold text-[#0F172A]">{formatCurrency(inv.total_amount)}</span>
-                    <Badge className={getStatusBadgeColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
+                    <div className="flex items-center gap-1">
+                      {inv.status === 'paid' && inv.payment_method === 'efectivo' && <span className="text-xs">💵</span>}
+                      {inv.status === 'paid' && inv.payment_method === 'transferencia' && <span className="text-xs">🏦</span>}
+                      <Badge className={getStatusBadgeColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
+                    </div>
                   </div>
                 </div>
               </button>
@@ -181,7 +192,14 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                         {inv.invoice_number || `CCS-${inv.year}-???`}
                       </td>
                       <td className="px-4 py-3.5">
-                        <p className="text-sm font-medium text-[#0F172A]">{inv.clients?.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-[#0F172A]">{inv.clients?.name}</p>
+                          {inv.clients?.bank_account && (
+                            <span className="text-[10px] text-[#64748B] bg-slate-100 rounded px-1.5 py-0.5">
+                              🏦 ****{inv.clients.bank_account.slice(-4)}
+                            </span>
+                          )}
+                        </div>
                         {inv.clients?.email && (
                           <p className="text-xs text-[#64748B]">{inv.clients.email}</p>
                         )}
@@ -190,9 +208,13 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                         {getMonthName(inv.month)} {inv.year}
                       </td>
                       <td className="px-4 py-3.5">
-                        <Badge className={getStatusBadgeColor(inv.status)}>
-                          {getStatusLabel(inv.status)}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          {inv.status === 'paid' && inv.payment_method === 'efectivo' && <span className="text-sm">💵</span>}
+                          {inv.status === 'paid' && inv.payment_method === 'transferencia' && <span className="text-sm">🏦</span>}
+                          <Badge className={getStatusBadgeColor(inv.status)}>
+                            {getStatusLabel(inv.status)}
+                          </Badge>
+                        </div>
                       </td>
                       <td className="px-4 py-3.5 text-right text-sm font-semibold text-[#0F172A]">
                         {formatCurrency(inv.total_amount)}

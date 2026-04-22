@@ -5,11 +5,21 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { ArrowLeft, Download, CheckCircle, Send, Loader2 } from 'lucide-react'
+import { ArrowLeft, Download, CheckCircle, Send, Loader2, Banknote, Building2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import {
   formatCurrency,
   formatDate,
@@ -75,15 +85,37 @@ function InvoiceSection({
 export function InvoiceDetail({ invoice }: { invoice: any }) {
   const router = useRouter()
   const [updating, setUpdating] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'transferencia'>('efectivo')
+  const [paymentReference, setPaymentReference] = useState('')
+
+  const clientBankAccount: string | null = invoice.clients?.bank_account ?? null
+  const lastFour = clientBankAccount ? clientBankAccount.slice(-4) : null
 
   const handleStatusUpdate = async (status: 'sent' | 'paid') => {
+    if (status === 'paid') {
+      setShowPaymentModal(true)
+      return
+    }
     setUpdating(true)
     try {
       await updateInvoiceStatus(invoice.id, status)
-      toast.success(
-        status === 'paid' ? 'Factura marcada como pagada' : 'Factura marcada como enviada'
-      )
+      toast.success('Factura marcada como enviada')
       router.refresh()
+    } catch {
+      toast.error('Error al actualizar el estado')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleConfirmPayment = async () => {
+    setUpdating(true)
+    try {
+      await updateInvoiceStatus(invoice.id, 'paid', paymentMethod, paymentReference)
+      toast.success('Factura marcada como pagada')
+      router.refresh()
+      setShowPaymentModal(false)
     } catch {
       toast.error('Error al actualizar el estado')
     } finally {
@@ -118,6 +150,12 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
             <Badge className={getStatusBadgeColor(invoice.status)}>
               {getStatusLabel(invoice.status)}
             </Badge>
+            {invoice.status === 'paid' && invoice.payment_method === 'efectivo' && (
+              <span title="Pagada en efectivo" className="text-lg">💵</span>
+            )}
+            {invoice.status === 'paid' && invoice.payment_method === 'transferencia' && (
+              <span title="Pagada por transferencia" className="text-lg">🏦</span>
+            )}
           </div>
           <p className="text-[#64748B] text-sm mt-1">
             {invoice.clients?.name} · {getMonthName(invoice.month)} {invoice.year}
@@ -201,6 +239,15 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
             )}
             {invoice.clients?.phone && (
               <p className="text-[#64748B] text-sm">{invoice.clients.phone}</p>
+            )}
+            {clientBankAccount && (
+              <p className="text-[#64748B] text-sm">Datos bancarios: ****{lastFour}</p>
+            )}
+            {invoice.payment_method && (
+              <p className="text-[#64748B] text-sm mt-1">
+                {invoice.payment_method === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia bancaria'}
+                {invoice.payment_reference && ` · Ref: ${invoice.payment_reference}`}
+              </p>
             )}
           </div>
 
@@ -296,6 +343,66 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
           #invoice-print .text-\\[\\#2563EB\\] { color: #1d4ed8 !important; }
         }
       `}</style>
+
+      {/* Payment method modal */}
+      <Dialog open={showPaymentModal} onOpenChange={(o) => !o && setShowPaymentModal(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar pago</DialogTitle>
+            <DialogDescription>
+              Selecciona el método de pago para {invoice.clients?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setPaymentMethod('efectivo')}
+                className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors ${
+                  paymentMethod === 'efectivo'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-[#E2E8F0] hover:border-blue-200'
+                }`}
+              >
+                <Banknote className="h-6 w-6 text-green-600" />
+                <span className="text-sm font-medium text-slate-700">💵 Efectivo</span>
+              </button>
+              <button
+                onClick={() => setPaymentMethod('transferencia')}
+                className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors ${
+                  paymentMethod === 'transferencia'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-[#E2E8F0] hover:border-blue-200'
+                }`}
+              >
+                <Building2 className="h-6 w-6 text-blue-600" />
+                <span className="text-sm font-medium text-slate-700">🏦 Transferencia</span>
+              </button>
+            </div>
+            {paymentMethod === 'transferencia' && clientBankAccount && (
+              <p className="text-sm text-[#64748B] rounded-lg bg-slate-50 border border-[#E2E8F0] px-3 py-2">
+                Cuenta del cliente: ****{lastFour}
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <Label>Referencia / Nota (opcional)</Label>
+              <Input
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                placeholder="Referencia de transferencia, nota..."
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowPaymentModal(false)} disabled={updating}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmPayment} disabled={updating}>
+              {updating && <Loader2 className="h-4 w-4 animate-spin" />}
+              Confirmar pago
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

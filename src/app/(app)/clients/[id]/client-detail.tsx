@@ -91,6 +91,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
     enrollment_month: existingEnrollment.month,
     enrollment_year: existingEnrollment.year,
     profile_type: client.profile_type,
+    bank_account: client.bank_account || '',
   })
 
   // Invoice generation modal
@@ -126,6 +127,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
         birth_date: birthDate,
         gender: (form.gender || null) as any,
         enrollment_date: enrollmentDate,
+        bank_account: form.bank_account || null,
       })
       toast.success('Datos actualizados correctamente')
       router.refresh()
@@ -390,6 +392,20 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                       </p>
                     )}
                   </div>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Cuenta bancaria (IBAN)</Label>
+                <Input
+                  value={form.bank_account}
+                  onChange={(e) => setForm((p) => ({ ...p, bank_account: e.target.value }))}
+                  placeholder="ES00 0000 0000 0000 0000 0000"
+                />
+                {form.bank_account && form.bank_account.length >= 4 && (
+                  <p className="text-xs text-[#64748B]">
+                    Guardado: ****{form.bank_account.slice(-4)}
+                  </p>
                 )}
               </div>
 

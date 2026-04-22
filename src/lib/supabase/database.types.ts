@@ -19,6 +19,7 @@ export interface Client {
   enrollment_date: string | null
   birth_date: string | null
   whatsapp_enabled: boolean
+  bank_account: string | null
   created_at: string
 }
 
@@ -58,6 +59,7 @@ export interface Session {
   time: string
   session_type: SessionType
   max_capacity: number | null
+  session_price: number | null
   created_at: string
 }
 
@@ -84,6 +86,8 @@ export interface Invoice {
   total_amount: number
   status: InvoiceStatus
   pdf_url: string | null
+  payment_method: 'efectivo' | 'transferencia' | null
+  payment_reference: string | null
   created_at: string
   invoice_number?: string
 }

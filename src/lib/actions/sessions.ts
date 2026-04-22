@@ -8,7 +8,7 @@ export async function getSessions() {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('sessions')
-    .select('*, session_clients(client_id, clients(id, name, active))')
+    .select('*, session_clients(client_id, clients(id, name, active, profile_type, monthly_fee))')
     .order('day_of_week')
     .order('time')
 
@@ -51,6 +51,7 @@ export async function createSessionAction(formData: {
   time: string
   session_type: SessionType
   max_capacity?: number
+  session_price?: number
 }) {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -61,6 +62,7 @@ export async function createSessionAction(formData: {
       time: formData.time,
       session_type: formData.session_type,
       max_capacity: formData.max_capacity || null,
+      session_price: formData.session_price ?? 40,
     })
     .select()
     .single()
