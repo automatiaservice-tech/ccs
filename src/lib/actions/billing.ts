@@ -206,7 +206,7 @@ export async function getInvoices(filters?: {
   const supabase = await createClient()
   let query = supabase
     .from('invoices')
-    .select('*, clients(name, email, bank_account)')
+    .select('*, clients(*)')
     .order('year', { ascending: false })
     .order('month', { ascending: false })
     .order('created_at', { ascending: false })
@@ -224,7 +224,7 @@ export async function getInvoiceById(id: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('invoices')
-    .select('*, clients(name, email, phone, bank_account), invoice_lines(*)')
+    .select('*, clients(*), invoice_lines(*)')
     .eq('id', id)
     .single()
 
