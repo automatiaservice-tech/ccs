@@ -369,3 +369,14 @@ export async function deleteInvoice(id: string) {
   if (error) throw new Error(`Error deleting invoice: ${error.message}`)
   revalidatePath('/billing')
 }
+
+export async function updateClientBankAccount(clientId: string, iban: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('clients')
+    .update({ bank_account: iban })
+    .eq('id', clientId)
+  if (error) throw new Error(`Error al guardar la cuenta bancaria: ${error.message}`)
+  revalidatePath('/billing')
+  revalidatePath(`/clients/${clientId}`)
+}

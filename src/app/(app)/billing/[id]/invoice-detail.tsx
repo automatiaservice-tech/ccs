@@ -27,7 +27,7 @@ import {
   getStatusBadgeColor,
   getStatusLabel,
 } from '@/lib/utils'
-import { updateInvoiceStatus } from '@/lib/actions/billing'
+import { updateInvoiceStatus, updateClientBankAccount } from '@/lib/actions/billing'
 
 // ── Line categorisation based on description prefix ───────────────────────
 function lineType(description: string): 'fixed' | 'individual' | 'variable' | 'other' {
@@ -88,9 +88,12 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'transferencia'>('efectivo')
   const [paymentReference, setPaymentReference] = useState('')
+  const [localBankAccount, setLocalBankAccount] = useState<string | null>(invoice.clients?.bank_account ?? null)
+  const [showBankModal, setShowBankModal] = useState(false)
+  const [bankIban, setBankIban] = useState('')
+  const [savingBank, setSavingBank] = useState(false)
 
-  const clientBankAccount: string | null = invoice.clients?.bank_account ?? null
-  const lastFour = clientBankAccount ? clientBankAccount.slice(-4) : null
+  const lastFour = localBankAccount ? localBankAccount.slice(-4) : null
 
   const handleStatusUpdate = async (status: 'sent' | 'paid') => {
     if (status === 'paid') {
@@ -120,6 +123,21 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
       toast.error('Error al actualizar el estado')
     } finally {
       setUpdating(false)
+    }
+  }
+
+  const handleSaveBankAccount = async () => {
+    if (!bankIban.trim() || !invoice.clients?.id) return
+    setSavingBank(true)
+    try {
+      await updateClientBankAccount(invoice.clients.id, bankIban.trim())
+      setLocalBankAccount(bankIban.trim())
+      toast.success('Cuenta bancaria guardada en la ficha del cliente')
+      setShowBankModal(false)
+    } catch (err: any) {
+      toast.error(err.message || 'Error al guardar la cuenta')
+    } finally {
+      setSavingBank(false)
     }
   }
 
@@ -193,6 +211,34 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
         </div>
       </div>
 
+      {/* ── Datos bancarios ── */}
+      <div className="flex items-center gap-3 no-print -mt-2">
+        {localBankAccount ? (
+          <>
+            <span className="text-sm text-slate-500">
+              🏦 Cuenta: <span className="font-medium text-slate-700">****{lastFour}</span>
+            </span>
+            <button
+              onClick={() => { setBankIban(localBankAccount); setShowBankModal(true) }}
+              className="text-xs text-blue-500 hover:text-blue-600 underline underline-offset-2"
+            >
+              Cambiar
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="text-sm text-slate-400">Sin cuenta bancaria asociada</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setBankIban(''); setShowBankModal(true) }}
+            >
+              Añadir cuenta bancaria
+            </Button>
+          </>
+        )}
+      </div>
+
       {/* ── Invoice card (printable) ── */}
       <Card id="invoice-print">
         <CardContent className="p-8 space-y-6">
@@ -240,7 +286,7 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
             {invoice.clients?.phone && (
               <p className="text-[#64748B] text-sm">{invoice.clients.phone}</p>
             )}
-            {clientBankAccount && (
+            {localBankAccount && (
               <p className="text-[#64748B] text-sm">Datos bancarios: ****{lastFour}</p>
             )}
             {invoice.payment_method && (
@@ -344,6 +390,38 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
         }
       `}</style>
 
+      {/* Bank account modal */}
+      <Dialog open={showBankModal} onOpenChange={(o) => !o && setShowBankModal(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{localBankAccount ? 'Cambiar cuenta bancaria' : 'Añadir cuenta bancaria'}</DialogTitle>
+            <DialogDescription>
+              Este dato se guardará en la ficha del cliente y estará disponible en futuras facturas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div className="space-y-1.5">
+              <Label>IBAN</Label>
+              <Input
+                value={bankIban}
+                onChange={(e) => setBankIban(e.target.value)}
+                placeholder="ES91 2100 0418 4502 0005 1332"
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveBankAccount()}
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowBankModal(false)} disabled={savingBank}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveBankAccount} disabled={savingBank || !bankIban.trim()}>
+              {savingBank && <Loader2 className="h-4 w-4 animate-spin" />}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Payment method modal */}
       <Dialog open={showPaymentModal} onOpenChange={(o) => !o && setShowPaymentModal(false)}>
         <DialogContent>
@@ -378,7 +456,7 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
                 <span className="text-sm font-medium text-slate-700">🏦 Transferencia</span>
               </button>
             </div>
-            {paymentMethod === 'transferencia' && clientBankAccount && (
+            {paymentMethod === 'transferencia' && localBankAccount && (
               <p className="text-sm text-[#64748B] rounded-lg bg-slate-50 border border-[#E2E8F0] px-3 py-2">
                 Cuenta del cliente: ****{lastFour}
               </p>

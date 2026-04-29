@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Loader2, ChevronRight, Trash2 } from 'lucide-react'
+import { Plus, Loader2, ChevronRight, Trash2, PlusCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -17,7 +17,8 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { formatCurrency, getStatusBadgeColor, getStatusLabel, getMonthName } from '@/lib/utils'
-import { generateMonthlyInvoices, deleteInvoice } from '@/lib/actions/billing'
+import { Input } from '@/components/ui/input'
+import { generateMonthlyInvoices, deleteInvoice, updateClientBankAccount } from '@/lib/actions/billing'
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: getMonthName(i + 1) }))
 const YEARS = Array.from({ length: 5 }, (_, i) => {
@@ -36,6 +37,10 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
   const [genYear, setGenYear] = useState(String(now.getFullYear()))
   const [generating, setGenerating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showBankModal, setShowBankModal] = useState(false)
+  const [bankModalClientId, setBankModalClientId] = useState<string | null>(null)
+  const [bankIban, setBankIban] = useState('')
+  const [savingBank, setSavingBank] = useState(false)
 
   const filtered = initialInvoices.filter((inv) => {
     if (filterMonth !== 'all' && inv.month !== parseInt(filterMonth)) return false
@@ -55,6 +60,29 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
       toast.error(err.message || 'Error al generar facturas')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  const handleOpenBankModal = (clientId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setBankModalClientId(clientId)
+    setBankIban('')
+    setShowBankModal(true)
+  }
+
+  const handleSaveBankAccount = async () => {
+    if (!bankModalClientId || !bankIban.trim()) return
+    setSavingBank(true)
+    try {
+      await updateClientBankAccount(bankModalClientId, bankIban.trim())
+      toast.success('Cuenta bancaria guardada en la ficha del cliente')
+      setShowBankModal(false)
+      router.refresh()
+    } catch (err: any) {
+      toast.error(err.message || 'Error al guardar la cuenta')
+    } finally {
+      setSavingBank(false)
     }
   }
 
@@ -136,11 +164,19 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-[#0F172A] truncate">{inv.clients?.name}</p>
-                      {inv.clients?.bank_account && (
+                      {inv.clients?.bank_account ? (
                         <span className="text-[10px] text-[#64748B] bg-slate-100 rounded px-1.5 py-0.5 shrink-0">
                           🏦 ****{inv.clients.bank_account.slice(-4)}
                         </span>
-                      )}
+                      ) : inv.clients?.id ? (
+                        <button
+                          onClick={(e) => handleOpenBankModal(inv.clients.id, e)}
+                          className="text-slate-300 hover:text-blue-400 transition-colors shrink-0"
+                          title="Añadir cuenta bancaria"
+                        >
+                          <PlusCircle className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
                     </div>
                     <p className="text-xs text-[#64748B] mt-0.5">
                       {getMonthName(inv.month)} {inv.year} · {inv.invoice_number || '—'}
@@ -194,11 +230,19 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium text-[#0F172A]">{inv.clients?.name}</p>
-                          {inv.clients?.bank_account && (
+                          {inv.clients?.bank_account ? (
                             <span className="text-[10px] text-[#64748B] bg-slate-100 rounded px-1.5 py-0.5">
                               🏦 ****{inv.clients.bank_account.slice(-4)}
                             </span>
-                          )}
+                          ) : inv.clients?.id ? (
+                            <button
+                              onClick={(e) => handleOpenBankModal(inv.clients.id, e)}
+                              className="text-slate-300 hover:text-blue-400 transition-colors"
+                              title="Añadir cuenta bancaria"
+                            >
+                              <PlusCircle className="h-3.5 w-3.5" />
+                            </button>
+                          ) : null}
                         </div>
                         {inv.clients?.email && (
                           <p className="text-xs text-[#64748B]">{inv.clients.email}</p>
@@ -247,6 +291,38 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
           {filtered.length} facturas · Total: {formatCurrency(filtered.reduce((s, i) => s + i.total_amount, 0))}
         </p>
       </div>
+
+      {/* Bank Account Modal */}
+      <Dialog open={showBankModal} onOpenChange={(o) => !o && setShowBankModal(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Añadir cuenta bancaria</DialogTitle>
+            <DialogDescription>
+              Este dato se guardará en la ficha del cliente y estará disponible en futuras facturas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div className="space-y-1.5">
+              <Label>IBAN</Label>
+              <Input
+                value={bankIban}
+                onChange={(e) => setBankIban(e.target.value)}
+                placeholder="ES91 2100 0418 4502 0005 1332"
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveBankAccount()}
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowBankModal(false)} disabled={savingBank}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveBankAccount} disabled={savingBank || !bankIban.trim()}>
+              {savingBank && <Loader2 className="h-4 w-4 animate-spin" />}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Generate Modal */}
       <Dialog open={showGenerateModal} onOpenChange={(o) => !o && setShowGenerateModal(false)}>
