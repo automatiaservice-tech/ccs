@@ -370,6 +370,15 @@ export async function deleteInvoice(id: string) {
   revalidatePath('/billing')
 }
 
+export async function deleteManyInvoices(ids: string[]) {
+  if (ids.length === 0) return
+  const supabase = await createClient()
+  await supabase.from('invoice_lines').delete().in('invoice_id', ids)
+  const { error } = await supabase.from('invoices').delete().in('id', ids)
+  if (error) throw new Error(`Error deleting invoices: ${error.message}`)
+  revalidatePath('/billing')
+}
+
 export async function updateInvoiceLines(
   invoiceId: string,
   lineIdsToKeep: string[],

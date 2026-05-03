@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Loader2, ChevronRight, Trash2, PlusCircle } from 'lucide-react'
+import { Plus, Loader2, ChevronRight, Trash2, PlusCircle, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -18,7 +18,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { formatCurrency, getStatusBadgeColor, getStatusLabel, getMonthName, FIXED_GROUP_RATES } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
-import { generateMonthlyInvoices, deleteInvoice, updateClientBankAccount } from '@/lib/actions/billing'
+import { generateMonthlyInvoices, deleteInvoice, deleteManyInvoices, updateClientBankAccount } from '@/lib/actions/billing'
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: getMonthName(i + 1) }))
 const YEARS = Array.from({ length: 5 }, (_, i) => {
@@ -49,25 +49,30 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
     setActiveStatus(pendingStatus)
     setActiveClientType(pendingClientType)
     setActiveTarifa(pendingTarifa)
+    setSelectedIds(new Set())
   }
 
   const handleClearFilters = () => {
-    setPendingMonth('all')
-    setPendingYear('all')
-    setPendingStatus('all')
-    setPendingClientType('all')
-    setPendingTarifa('all')
-    setActiveMonth('all')
-    setActiveYear('all')
-    setActiveStatus('all')
-    setActiveClientType('all')
-    setActiveTarifa('all')
+    setPendingMonth('all'); setPendingYear('all'); setPendingStatus('all')
+    setPendingClientType('all'); setPendingTarifa('all')
+    setActiveMonth('all'); setActiveYear('all'); setActiveStatus('all')
+    setActiveClientType('all'); setActiveTarifa('all')
+    setSelectedIds(new Set())
   }
 
   const hasActiveFilters =
     activeMonth !== 'all' || activeYear !== 'all' || activeStatus !== 'all' ||
     activeClientType !== 'all' || activeTarifa !== 'all'
 
+  // ── Selection state ─────────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  // ── Delete modal state ──────────────────────────────────────────────────
+  // 'selected' = eliminar seleccionadas, 'all' = eliminar todas las filtradas
+  const [deleteTarget, setDeleteTarget] = useState<'selected' | 'all' | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  // ── Other modals ────────────────────────────────────────────────────────
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [genMonth, setGenMonth] = useState(String(now.getMonth() + 1))
   const [genYear, setGenYear] = useState(String(now.getFullYear()))
@@ -78,16 +83,90 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
   const [bankIban, setBankIban] = useState('')
   const [savingBank, setSavingBank] = useState(false)
 
-  const filtered = initialInvoices.filter((inv) => {
+  const filtered = useMemo(() => initialInvoices.filter((inv) => {
     if (activeMonth !== 'all' && inv.month !== parseInt(activeMonth)) return false
     if (activeYear !== 'all' && inv.year !== parseInt(activeYear)) return false
     if (activeStatus !== 'all' && inv.status !== activeStatus) return false
     if (activeClientType !== 'all' && inv.clients?.profile_type !== activeClientType) return false
     if (activeTarifa !== 'all' && inv.clients?.monthly_fee !== parseInt(activeTarifa)) return false
     return true
-  })
+  }), [initialInvoices, activeMonth, activeYear, activeStatus, activeClientType, activeTarifa])
 
   const filteredTotal = filtered.reduce((s: number, i: any) => s + i.total_amount, 0)
+
+  // ── Selection helpers ───────────────────────────────────────────────────
+  const allFilteredSelected = filtered.length > 0 && filtered.every((inv) => selectedIds.has(inv.id))
+  const someFilteredSelected = filtered.some((inv) => selectedIds.has(inv.id))
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        filtered.forEach((inv) => next.delete(inv.id))
+        return next
+      })
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        filtered.forEach((inv) => next.add(inv.id))
+        return next
+      })
+    }
+  }
+
+  // ── IDs and paid count for active delete operation ──────────────────────
+  const idsToDelete = useMemo(() => {
+    if (deleteTarget === 'selected') return [...selectedIds].filter((id) => filtered.some((inv) => inv.id === id))
+    if (deleteTarget === 'all') return filtered.map((inv) => inv.id)
+    return []
+  }, [deleteTarget, selectedIds, filtered])
+
+  const paidCount = useMemo(
+    () => idsToDelete.filter((id) => initialInvoices.find((inv) => inv.id === id)?.status === 'paid').length,
+    [idsToDelete, initialInvoices]
+  )
+
+  // ── Delete handlers ─────────────────────────────────────────────────────
+  const handleConfirmDelete = async () => {
+    if (idsToDelete.length === 0) return
+    setDeleting(true)
+    try {
+      await deleteManyInvoices(idsToDelete)
+      toast.success(`${idsToDelete.length} factura${idsToDelete.length !== 1 ? 's' : ''} eliminada${idsToDelete.length !== 1 ? 's' : ''} correctamente`)
+      setSelectedIds(new Set())
+      setDeleteTarget(null)
+      router.refresh()
+    } catch {
+      toast.error('Error al eliminar las facturas')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleDeleteSingle = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDeletingId(id)
+    try {
+      await deleteInvoice(id)
+      toast.success('Factura eliminada')
+      router.refresh()
+    } catch {
+      toast.error('Error al eliminar')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const handleGenerate = async () => {
     setGenerating(true)
@@ -126,62 +205,47 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
     }
   }
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!confirm('¿Eliminar esta factura?')) return
-    setDeletingId(id)
-    try {
-      await deleteInvoice(id)
-      toast.success('Factura eliminada')
-      router.refresh()
-    } catch {
-      toast.error('Error al eliminar')
-    } finally {
-      setDeletingId(null)
-    }
-  }
-
   return (
     <>
-      <div className="space-y-4">
-        {/* Generate button */}
-        <Button onClick={() => setShowGenerateModal(true)} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4" />
-          Generar facturas del mes
-        </Button>
+      <div className="space-y-4 pb-24">
+        {/* ── Top actions ── */}
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={() => setShowGenerateModal(true)} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4" />
+            Generar facturas del mes
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => setDeleteTarget('all')}
+            disabled={filtered.length === 0}
+            className="w-full sm:w-auto"
+          >
+            <Trash2 className="h-4 w-4" />
+            Eliminar todas ({filtered.length})
+          </Button>
+        </div>
 
         {/* ── Filter panel ── */}
         <div className="rounded-xl border border-[#E2E8F0] bg-slate-50/60 p-3 space-y-3">
           <div className="flex gap-2 flex-wrap">
             <Select value={pendingMonth} onValueChange={setPendingMonth}>
-              <SelectTrigger className="w-36 h-9 text-xs">
-                <SelectValue placeholder="Mes" />
-              </SelectTrigger>
+              <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="Mes" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los meses</SelectItem>
-                {MONTHS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
+                {MONTHS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
 
             <Select value={pendingYear} onValueChange={setPendingYear}>
-              <SelectTrigger className="w-24 h-9 text-xs">
-                <SelectValue placeholder="Año" />
-              </SelectTrigger>
+              <SelectTrigger className="w-24 h-9 text-xs"><SelectValue placeholder="Año" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                {YEARS.map((y) => (
-                  <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
-                ))}
+                {YEARS.map((y) => <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>)}
               </SelectContent>
             </Select>
 
             <Select value={pendingStatus} onValueChange={setPendingStatus}>
-              <SelectTrigger className="w-36 h-9 text-xs">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
+              <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="Estado" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los estados</SelectItem>
                 <SelectItem value="draft">Borrador</SelectItem>
@@ -191,9 +255,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
             </Select>
 
             <Select value={pendingClientType} onValueChange={(v) => { setPendingClientType(v); if (v !== 'fixed_group') setPendingTarifa('all') }}>
-              <SelectTrigger className="w-48 h-9 text-xs">
-                <SelectValue placeholder="Tipo cliente" />
-              </SelectTrigger>
+              <SelectTrigger className="w-48 h-9 text-xs"><SelectValue placeholder="Tipo cliente" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los tipos</SelectItem>
                 <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
@@ -204,14 +266,10 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
 
             {pendingClientType === 'fixed_group' && (
               <Select value={pendingTarifa} onValueChange={setPendingTarifa}>
-                <SelectTrigger className="w-44 h-9 text-xs">
-                  <SelectValue placeholder="Tarifa" />
-                </SelectTrigger>
+                <SelectTrigger className="w-44 h-9 text-xs"><SelectValue placeholder="Tarifa" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas las tarifas</SelectItem>
-                  {FIXED_GROUP_RATES.map((r) => (
-                    <SelectItem key={r.value} value={String(r.value)}>{r.label}</SelectItem>
-                  ))}
+                  {FIXED_GROUP_RATES.map((r) => <SelectItem key={r.value} value={String(r.value)}>{r.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}
@@ -222,9 +280,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
               Aplicar filtros
             </Button>
             <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs"
+              size="sm" variant="outline" className="h-8 text-xs"
               onClick={handleClearFilters}
               disabled={!hasActiveFilters && pendingMonth === 'all' && pendingYear === 'all' && pendingStatus === 'all' && pendingClientType === 'all' && pendingTarifa === 'all'}
             >
@@ -241,45 +297,64 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
           {filtered.length === 0 ? (
             <p className="text-center py-10 text-[#64748B] text-sm">No se encontraron facturas</p>
           ) : (
-            filtered.map((inv) => (
-              <button
-                key={inv.id}
-                onClick={() => router.push(`/billing/${inv.id}`)}
-                className="w-full text-left rounded-xl border border-[#E2E8F0] bg-white p-4 hover:border-blue-200 hover:bg-blue-50/20 transition-colors active:bg-slate-50"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-[#0F172A] truncate">{inv.clients?.name}</p>
-                      {inv.clients?.bank_account ? (
-                        <span className="text-[10px] text-[#64748B] bg-slate-100 rounded px-1.5 py-0.5 shrink-0">
-                          🏦 ****{inv.clients.bank_account.slice(-4)}
-                        </span>
-                      ) : inv.clients?.id ? (
-                        <button
-                          onClick={(e) => handleOpenBankModal(inv.clients.id, e)}
-                          className="text-slate-300 hover:text-blue-400 transition-colors shrink-0"
-                          title="Añadir cuenta bancaria"
-                        >
-                          <PlusCircle className="h-3.5 w-3.5" />
-                        </button>
-                      ) : null}
+            filtered.map((inv) => {
+              const isSelected = selectedIds.has(inv.id)
+              return (
+                <div
+                  key={inv.id}
+                  className={`rounded-xl border bg-white transition-colors ${isSelected ? 'border-blue-400 bg-blue-50/30' : 'border-[#E2E8F0]'}`}
+                >
+                  <div className="flex items-start gap-3 p-4">
+                    {/* Checkbox */}
+                    <div className="pt-0.5 shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => { e.stopPropagation(); setSelectedIds((prev) => { const next = new Set(prev); isSelected ? next.delete(inv.id) : next.add(inv.id); return next }) }}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 cursor-pointer"
+                      />
                     </div>
-                    <p className="text-xs text-[#64748B] mt-0.5">
-                      {getMonthName(inv.month)} {inv.year} · {inv.invoice_number || '—'}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <span className="text-sm font-bold text-[#0F172A]">{formatCurrency(inv.total_amount)}</span>
-                    <div className="flex items-center gap-1">
-                      {inv.status === 'paid' && inv.payment_method === 'efectivo' && <span className="text-xs">💵</span>}
-                      {inv.status === 'paid' && inv.payment_method === 'transferencia' && <span className="text-xs">🏦</span>}
-                      <Badge className={getStatusBadgeColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
-                    </div>
+                    {/* Card content — click navigates */}
+                    <button
+                      className="flex-1 min-w-0 text-left"
+                      onClick={() => router.push(`/billing/${inv.id}`)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-[#0F172A] truncate">{inv.clients?.name}</p>
+                            {inv.clients?.bank_account ? (
+                              <span className="text-[10px] text-[#64748B] bg-slate-100 rounded px-1.5 py-0.5 shrink-0">
+                                🏦 ****{inv.clients.bank_account.slice(-4)}
+                              </span>
+                            ) : inv.clients?.id ? (
+                              <button
+                                onClick={(e) => handleOpenBankModal(inv.clients.id, e)}
+                                className="text-slate-300 hover:text-blue-400 transition-colors shrink-0"
+                                title="Añadir cuenta bancaria"
+                              >
+                                <PlusCircle className="h-3.5 w-3.5" />
+                              </button>
+                            ) : null}
+                          </div>
+                          <p className="text-xs text-[#64748B] mt-0.5">
+                            {getMonthName(inv.month)} {inv.year} · {inv.invoice_number || '—'}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <span className="text-sm font-bold text-[#0F172A]">{formatCurrency(inv.total_amount)}</span>
+                          <div className="flex items-center gap-1">
+                            {inv.status === 'paid' && inv.payment_method === 'efectivo' && <span className="text-xs">💵</span>}
+                            {inv.status === 'paid' && inv.payment_method === 'transferencia' && <span className="text-xs">🏦</span>}
+                            <Badge className={getStatusBadgeColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
                   </div>
                 </div>
-              </button>
-            ))
+              )
+            })
           )}
         </div>
 
@@ -289,6 +364,16 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                  {/* Select-all checkbox */}
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      ref={(el) => { if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected }}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 cursor-pointer"
+                    />
+                  </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase hidden md:table-cell">Nº Factura</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Cliente</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase">Período</th>
@@ -300,74 +385,83 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-12 text-[#64748B]">
+                    <td colSpan={7} className="text-center py-12 text-[#64748B]">
                       No se encontraron facturas
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((inv) => (
-                    <tr
-                      key={inv.id}
-                      className="border-b border-[#F1F5F9] hover:bg-slate-50 cursor-pointer transition-colors"
-                      onClick={() => router.push(`/billing/${inv.id}`)}
-                    >
-                      <td className="px-4 py-3.5 text-sm text-[#64748B] hidden md:table-cell">
-                        {inv.invoice_number || `CCS-${inv.year}-???`}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-[#0F172A]">{inv.clients?.name}</p>
-                          {inv.clients?.bank_account ? (
-                            <span className="text-[10px] text-[#64748B] bg-slate-100 rounded px-1.5 py-0.5">
-                              🏦 ****{inv.clients.bank_account.slice(-4)}
-                            </span>
-                          ) : inv.clients?.id ? (
+                  filtered.map((inv) => {
+                    const isSelected = selectedIds.has(inv.id)
+                    return (
+                      <tr
+                        key={inv.id}
+                        className={`border-b border-[#F1F5F9] cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                        onClick={() => router.push(`/billing/${inv.id}`)}
+                      >
+                        <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => setSelectedIds((prev) => { const next = new Set(prev); isSelected ? next.delete(inv.id) : next.add(inv.id); return next })}
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-4 py-3.5 text-sm text-[#64748B] hidden md:table-cell">
+                          {inv.invoice_number || `CCS-${inv.year}-???`}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-[#0F172A]">{inv.clients?.name}</p>
+                            {inv.clients?.bank_account ? (
+                              <span className="text-[10px] text-[#64748B] bg-slate-100 rounded px-1.5 py-0.5">
+                                🏦 ****{inv.clients.bank_account.slice(-4)}
+                              </span>
+                            ) : inv.clients?.id ? (
+                              <button
+                                onClick={(e) => handleOpenBankModal(inv.clients.id, e)}
+                                className="text-slate-300 hover:text-blue-400 transition-colors"
+                                title="Añadir cuenta bancaria"
+                              >
+                                <PlusCircle className="h-3.5 w-3.5" />
+                              </button>
+                            ) : null}
+                          </div>
+                          {inv.clients?.email && (
+                            <p className="text-xs text-[#64748B]">{inv.clients.email}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-sm text-slate-600">
+                          {getMonthName(inv.month)} {inv.year}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-1">
+                            {inv.status === 'paid' && inv.payment_method === 'efectivo' && <span className="text-sm">💵</span>}
+                            {inv.status === 'paid' && inv.payment_method === 'transferencia' && <span className="text-sm">🏦</span>}
+                            <Badge className={getStatusBadgeColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 text-right text-sm font-semibold text-[#0F172A]">
+                          {formatCurrency(inv.total_amount)}
+                        </td>
+                        <td className="px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={(e) => handleOpenBankModal(inv.clients.id, e)}
-                              className="text-slate-300 hover:text-blue-400 transition-colors"
-                              title="Añadir cuenta bancaria"
+                              onClick={(e) => handleDeleteSingle(inv.id, e)}
+                              disabled={deletingId === inv.id}
+                              className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
                             >
-                              <PlusCircle className="h-3.5 w-3.5" />
+                              {deletingId === inv.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
                             </button>
-                          ) : null}
-                        </div>
-                        {inv.clients?.email && (
-                          <p className="text-xs text-[#64748B]">{inv.clients.email}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-sm text-slate-600">
-                        {getMonthName(inv.month)} {inv.year}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1">
-                          {inv.status === 'paid' && inv.payment_method === 'efectivo' && <span className="text-sm">💵</span>}
-                          {inv.status === 'paid' && inv.payment_method === 'transferencia' && <span className="text-sm">🏦</span>}
-                          <Badge className={getStatusBadgeColor(inv.status)}>
-                            {getStatusLabel(inv.status)}
-                          </Badge>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 text-right text-sm font-semibold text-[#0F172A]">
-                        {formatCurrency(inv.total_amount)}
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={(e) => handleDelete(inv.id, e)}
-                            disabled={deletingId === inv.id}
-                            className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
-                          >
-                            {deletingId === inv.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </button>
-                          <ChevronRight className="h-4 w-4 text-slate-400" />
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                            <ChevronRight className="h-4 w-4 text-slate-400" />
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
@@ -375,7 +469,75 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
         </div>
       </div>
 
-      {/* Bank Account Modal */}
+      {/* ── Floating action bar ── */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border border-[#E2E8F0] bg-white px-5 py-3 shadow-xl">
+          <span className="text-sm font-medium text-slate-700 whitespace-nowrap">
+            {selectedIds.size} factura{selectedIds.size !== 1 ? 's' : ''} seleccionada{selectedIds.size !== 1 ? 's' : ''}
+          </span>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setDeleteTarget('selected')}
+            className="h-8"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Eliminar seleccionadas
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setSelectedIds(new Set())}
+            className="h-8"
+          >
+            Cancelar selección
+          </Button>
+        </div>
+      )}
+
+      {/* ── Delete confirmation modal ── */}
+      <Dialog open={deleteTarget !== null} onOpenChange={(o) => { if (!o && !deleting) setDeleteTarget(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              {deleteTarget === 'all' ? '¿Eliminar TODAS las facturas?' : `¿Eliminar ${idsToDelete.length} factura${idsToDelete.length !== 1 ? 's' : ''}?`}
+            </DialogTitle>
+            <DialogDescription>
+              {deleteTarget === 'all'
+                ? `Esta acción eliminará ${idsToDelete.length} factura${idsToDelete.length !== 1 ? 's' : ''} y no se puede deshacer.`
+                : `¿Eliminar ${idsToDelete.length} factura${idsToDelete.length !== 1 ? 's' : ''} seleccionada${idsToDelete.length !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          {paidCount > 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mt-1">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-amber-700">
+                {paidCount} de las facturas seleccionadas ya {paidCount === 1 ? 'está pagada' : 'están pagadas'}.
+                ¿Deseas eliminarla{paidCount !== 1 ? 's' : ''} igualmente?
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Bank Account Modal ── */}
       <Dialog open={showBankModal} onOpenChange={(o) => !o && setShowBankModal(false)}>
         <DialogContent>
           <DialogHeader>
@@ -407,7 +569,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
         </DialogContent>
       </Dialog>
 
-      {/* Generate Modal */}
+      {/* ── Generate Modal ── */}
       <Dialog open={showGenerateModal} onOpenChange={(o) => !o && setShowGenerateModal(false)}>
         <DialogContent>
           <DialogHeader>
@@ -420,26 +582,18 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
             <div className="space-y-1.5">
               <Label>Mes</Label>
               <Select value={genMonth} onValueChange={setGenMonth}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {MONTHS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                  ))}
+                  {MONTHS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Año</Label>
               <Select value={genYear} onValueChange={setGenYear}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {YEARS.map((y) => (
-                    <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
-                  ))}
+                  {YEARS.map((y) => <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
