@@ -118,16 +118,14 @@ function SessionPriceLine({ session }: { session: Session }) {
 
   if (session.session_type === 'individual') {
     const price = session.session_price ?? 40
-    const durationHours = (session.duration_minutes ?? 60) / 60
     const perPerson = Math.round((price / clientCount) * 100) / 100
-    const perHour = Math.round((price * clientCount / durationHours) * 100) / 100
     return (
       <div className="mt-1 space-y-0.5">
         <p className="text-xs text-orange-600">
           💶 {perPerson.toFixed(2).replace('.', ',')}€/persona
         </p>
         <p className="text-xs text-orange-500">
-          ⏱ {perHour.toFixed(2).replace('.', ',')}€/hora
+          📋 {price.toFixed(2).replace('.', ',')}€/sesión
         </p>
       </div>
     )
@@ -256,9 +254,7 @@ function IndividualPriceEditor({
   const [saving, setSaving] = useState(false)
 
   const priceNum = parseFloat(price) || 0
-  const durationHours = (session.duration_minutes ?? 60) / 60
   const perPerson = participantCount > 0 ? Math.round((priceNum / participantCount) * 100) / 100 : priceNum
-  const perHour = participantCount > 0 ? Math.round((priceNum * participantCount / durationHours) * 100) / 100 : 0
 
   const handleSave = async () => {
     setSaving(true)
@@ -297,7 +293,7 @@ function IndividualPriceEditor({
             💶 {perPerson.toFixed(2).replace('.', ',')}€/persona ({participantCount} participante{participantCount !== 1 ? 's' : ''})
           </p>
           <p className="text-xs text-orange-500">
-            ⏱ {perHour.toFixed(2).replace('.', ',')}€/hora
+            📋 {priceNum.toFixed(2).replace('.', ',')}€/sesión
           </p>
         </div>
       )}
@@ -622,14 +618,13 @@ export function WeeklySchedule({
                             {clientCount > 0 && s.session_type === 'individual' && (() => {
                               const price = s.session_price ?? 40
                               const perPerson = Math.round((price / clientCount) * 100) / 100
-                              const perHour = Math.round((price * clientCount / durationHours) * 100) / 100
                               return (
                                 <div className="mt-1">
                                   <p className="text-[10px] text-orange-600 leading-tight">
                                     💶 {perPerson.toFixed(2).replace('.', ',')}€/p
                                   </p>
                                   <p className="text-[10px] text-orange-500 leading-tight">
-                                    ⏱ {perHour.toFixed(2).replace('.', ',')}€/h
+                                    📋 {price.toFixed(2).replace('.', ',')}€/ses
                                   </p>
                                 </div>
                               )
