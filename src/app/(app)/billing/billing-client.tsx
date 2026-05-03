@@ -16,7 +16,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { formatCurrency, getStatusBadgeColor, getStatusLabel, getMonthName } from '@/lib/utils'
+import { formatCurrency, getStatusBadgeColor, getStatusLabel, getMonthName, FIXED_GROUP_RATES } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { generateMonthlyInvoices, deleteInvoice, updateClientBankAccount } from '@/lib/actions/billing'
 
@@ -29,9 +29,45 @@ const YEARS = Array.from({ length: 5 }, (_, i) => {
 export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
   const router = useRouter()
   const now = new Date()
-  const [filterMonth, setFilterMonth] = useState<string>('all')
-  const [filterYear, setFilterYear] = useState<string>('all')
-  const [filterStatus, setFilterStatus] = useState<string>('all')
+
+  // ── Staged filters ──────────────────────────────────────────────────────
+  const [pendingMonth, setPendingMonth] = useState('all')
+  const [pendingYear, setPendingYear] = useState('all')
+  const [pendingStatus, setPendingStatus] = useState('all')
+  const [pendingClientType, setPendingClientType] = useState('all')
+  const [pendingTarifa, setPendingTarifa] = useState('all')
+
+  const [activeMonth, setActiveMonth] = useState('all')
+  const [activeYear, setActiveYear] = useState('all')
+  const [activeStatus, setActiveStatus] = useState('all')
+  const [activeClientType, setActiveClientType] = useState('all')
+  const [activeTarifa, setActiveTarifa] = useState('all')
+
+  const handleApplyFilters = () => {
+    setActiveMonth(pendingMonth)
+    setActiveYear(pendingYear)
+    setActiveStatus(pendingStatus)
+    setActiveClientType(pendingClientType)
+    setActiveTarifa(pendingTarifa)
+  }
+
+  const handleClearFilters = () => {
+    setPendingMonth('all')
+    setPendingYear('all')
+    setPendingStatus('all')
+    setPendingClientType('all')
+    setPendingTarifa('all')
+    setActiveMonth('all')
+    setActiveYear('all')
+    setActiveStatus('all')
+    setActiveClientType('all')
+    setActiveTarifa('all')
+  }
+
+  const hasActiveFilters =
+    activeMonth !== 'all' || activeYear !== 'all' || activeStatus !== 'all' ||
+    activeClientType !== 'all' || activeTarifa !== 'all'
+
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [genMonth, setGenMonth] = useState(String(now.getMonth() + 1))
   const [genYear, setGenYear] = useState(String(now.getFullYear()))
@@ -43,11 +79,15 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
   const [savingBank, setSavingBank] = useState(false)
 
   const filtered = initialInvoices.filter((inv) => {
-    if (filterMonth !== 'all' && inv.month !== parseInt(filterMonth)) return false
-    if (filterYear !== 'all' && inv.year !== parseInt(filterYear)) return false
-    if (filterStatus !== 'all' && inv.status !== filterStatus) return false
+    if (activeMonth !== 'all' && inv.month !== parseInt(activeMonth)) return false
+    if (activeYear !== 'all' && inv.year !== parseInt(activeYear)) return false
+    if (activeStatus !== 'all' && inv.status !== activeStatus) return false
+    if (activeClientType !== 'all' && inv.clients?.profile_type !== activeClientType) return false
+    if (activeTarifa !== 'all' && inv.clients?.monthly_fee !== parseInt(activeTarifa)) return false
     return true
   })
+
+  const filteredTotal = filtered.reduce((s: number, i: any) => s + i.total_amount, 0)
 
   const handleGenerate = async () => {
     setGenerating(true)
@@ -105,15 +145,16 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
   return (
     <>
       <div className="space-y-4">
-        {/* Filters + Actions */}
-        <div className="space-y-3">
-          {/* Button full width on mobile */}
-          <Button onClick={() => setShowGenerateModal(true)} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4" />
-            Generar facturas del mes
-          </Button>
+        {/* Generate button */}
+        <Button onClick={() => setShowGenerateModal(true)} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4" />
+          Generar facturas del mes
+        </Button>
+
+        {/* ── Filter panel ── */}
+        <div className="rounded-xl border border-[#E2E8F0] bg-slate-50/60 p-3 space-y-3">
           <div className="flex gap-2 flex-wrap">
-            <Select value={filterMonth} onValueChange={setFilterMonth}>
+            <Select value={pendingMonth} onValueChange={setPendingMonth}>
               <SelectTrigger className="w-36 h-9 text-xs">
                 <SelectValue placeholder="Mes" />
               </SelectTrigger>
@@ -124,7 +165,8 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterYear} onValueChange={setFilterYear}>
+
+            <Select value={pendingYear} onValueChange={setPendingYear}>
               <SelectTrigger className="w-24 h-9 text-xs">
                 <SelectValue placeholder="Año" />
               </SelectTrigger>
@@ -135,7 +177,8 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
+
+            <Select value={pendingStatus} onValueChange={setPendingStatus}>
               <SelectTrigger className="w-36 h-9 text-xs">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
@@ -146,6 +189,50 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                 <SelectItem value="paid">Pagada</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={pendingClientType} onValueChange={(v) => { setPendingClientType(v); if (v !== 'fixed_group') setPendingTarifa('all') }}>
+              <SelectTrigger className="w-48 h-9 text-xs">
+                <SelectValue placeholder="Tipo cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
+                <SelectItem value="variable_group">Grupo Personal Variable</SelectItem>
+                <SelectItem value="individual">Personal</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {pendingClientType === 'fixed_group' && (
+              <Select value={pendingTarifa} onValueChange={setPendingTarifa}>
+                <SelectTrigger className="w-44 h-9 text-xs">
+                  <SelectValue placeholder="Tarifa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las tarifas</SelectItem>
+                  {FIXED_GROUP_RATES.map((r) => (
+                    <SelectItem key={r.value} value={String(r.value)}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" className="h-8 text-xs" onClick={handleApplyFilters}>
+              Aplicar filtros
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={handleClearFilters}
+              disabled={!hasActiveFilters && pendingMonth === 'all' && pendingYear === 'all' && pendingStatus === 'all' && pendingClientType === 'all' && pendingTarifa === 'all'}
+            >
+              Limpiar filtros
+            </Button>
+            <span className="text-xs text-[#64748B] ml-auto">
+              {filtered.length} facturas encontradas · Total: {formatCurrency(filteredTotal)}
+            </span>
           </div>
         </div>
 
@@ -286,10 +373,6 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
             </table>
           </div>
         </div>
-
-        <p className="text-xs text-[#64748B]">
-          {filtered.length} facturas · Total: {formatCurrency(filtered.reduce((s, i) => s + i.total_amount, 0))}
-        </p>
       </div>
 
       {/* Bank Account Modal */}

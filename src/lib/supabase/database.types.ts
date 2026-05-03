@@ -60,6 +60,7 @@ export interface Session {
   session_type: SessionType
   max_capacity: number | null
   session_price: number | null
+  duration_minutes: number | null
   created_at: string
 }
 

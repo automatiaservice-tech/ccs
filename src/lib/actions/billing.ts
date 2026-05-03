@@ -370,6 +370,40 @@ export async function deleteInvoice(id: string) {
   revalidatePath('/billing')
 }
 
+export async function updateInvoiceLines(
+  invoiceId: string,
+  lineIdsToKeep: string[],
+  newTotal: number
+) {
+  const supabase = await createClient()
+
+  if (lineIdsToKeep.length === 0) {
+    await supabase.from('invoice_lines').delete().eq('invoice_id', invoiceId)
+  } else {
+    const { data: allLines } = await supabase
+      .from('invoice_lines')
+      .select('id')
+      .eq('invoice_id', invoiceId)
+
+    const toDelete = (allLines || [])
+      .filter((l) => !lineIdsToKeep.includes(l.id))
+      .map((l) => l.id)
+
+    if (toDelete.length > 0) {
+      await supabase.from('invoice_lines').delete().in('id', toDelete)
+    }
+  }
+
+  const { error } = await supabase
+    .from('invoices')
+    .update({ total_amount: newTotal })
+    .eq('id', invoiceId)
+  if (error) throw new Error(`Error updating invoice: ${error.message}`)
+
+  revalidatePath('/billing')
+  revalidatePath(`/billing/${invoiceId}`)
+}
+
 export async function updateClientBankAccount(clientId: string, iban: string) {
   const supabase = await createClient()
   const { error } = await supabase

@@ -16,7 +16,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { cn, getProfileTypeLabel } from '@/lib/utils'
+import { cn, getProfileTypeLabel, FIXED_GROUP_RATES } from '@/lib/utils'
 import type { Client } from '@/lib/supabase/database.types'
 import { NewClientModal } from './new-client-modal'
 import { deleteClientAction, toggleClientActive } from '@/lib/actions/clients'
@@ -157,13 +157,36 @@ function ClientMenu({ client, onDelete, onToggleActive }: ClientMenuProps) {
 export function ClientsTable({ initialClients }: ClientsTableProps) {
   const [clients, setClients] = useState(initialClients)
   const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('alpha')
   const [showModal, setShowModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null)
   const [deleting, setDeleting] = useState(false)
   const router = useRouter()
+
+  // ── Staged filters ─────────────────────────────────────────────────────
+  const [pendingType, setPendingType] = useState('all')
+  const [pendingTarifa, setPendingTarifa] = useState('all')
+  const [pendingStatus, setPendingStatus] = useState('all')
+  const [activeType, setActiveType] = useState('all')
+  const [activeTarifa, setActiveTarifa] = useState('all')
+  const [activeStatus, setActiveStatus] = useState('all')
+
+  const handleApplyFilters = () => {
+    setActiveType(pendingType)
+    setActiveTarifa(pendingTarifa)
+    setActiveStatus(pendingStatus)
+  }
+
+  const handleClearFilters = () => {
+    setPendingType('all')
+    setPendingTarifa('all')
+    setPendingStatus('all')
+    setActiveType('all')
+    setActiveTarifa('all')
+    setActiveStatus('all')
+  }
+
+  const hasActiveFilters = activeType !== 'all' || activeTarifa !== 'all' || activeStatus !== 'all'
 
   const filtered = sortClients(
     clients.filter((c) => {
@@ -171,10 +194,13 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         (c.phone || '').includes(search) ||
         (c.email || '').toLowerCase().includes(search.toLowerCase())
-      const matchType = typeFilter === 'all' || c.profile_type === typeFilter
+      const matchType = activeType === 'all' || c.profile_type === activeType
       const matchStatus =
-        statusFilter === 'all' || (statusFilter === 'active' ? c.active : !c.active)
-      return matchSearch && matchType && matchStatus
+        activeStatus === 'all' || (activeStatus === 'active' ? c.active : !c.active)
+      const matchTarifa =
+        activeTarifa === 'all' ||
+        (activeType === 'fixed_group' && c.monthly_fee === parseInt(activeTarifa))
+      return matchSearch && matchType && matchStatus && matchTarifa
     }),
     sortOrder
   )
@@ -209,28 +235,28 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
   return (
     <>
       <div className="space-y-4">
-        {/* ── Filters + button ── */}
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Buscar cliente..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-10"
-              />
-            </div>
-            <Button onClick={() => setShowModal(true)} className="h-10 shrink-0">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Nuevo cliente</span>
-            </Button>
+        {/* ── Search + button ── */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Buscar cliente..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-10"
+            />
           </div>
+          <Button onClick={() => setShowModal(true)} className="h-10 shrink-0">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nuevo cliente</span>
+          </Button>
+        </div>
 
-          {/* Filters row */}
+        {/* ── Filter panel ── */}
+        <div className="rounded-xl border border-[#E2E8F0] bg-slate-50/60 p-3 space-y-3">
           <div className="flex gap-2 flex-wrap">
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-44 h-9 text-xs">
+            <Select value={pendingType} onValueChange={setPendingType}>
+              <SelectTrigger className="w-48 h-9 text-xs">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -240,8 +266,23 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                 <SelectItem value="individual">Personal</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32 h-9 text-xs">
+
+            {pendingType === 'fixed_group' && (
+              <Select value={pendingTarifa} onValueChange={setPendingTarifa}>
+                <SelectTrigger className="w-44 h-9 text-xs">
+                  <SelectValue placeholder="Tarifa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las tarifas</SelectItem>
+                  {FIXED_GROUP_RATES.map((r) => (
+                    <SelectItem key={r.value} value={String(r.value)}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <Select value={pendingStatus} onValueChange={setPendingStatus}>
+              <SelectTrigger className="w-36 h-9 text-xs">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -250,6 +291,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                 <SelectItem value="inactive">Inactivos</SelectItem>
               </SelectContent>
             </Select>
+
             <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
               <SelectTrigger className="w-52 h-9 text-xs">
                 <ArrowUpDown className="h-3.5 w-3.5 mr-1 shrink-0" />
@@ -263,20 +305,36 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
             </Select>
           </div>
 
-          {/* Color legend */}
-          <div className="flex gap-4 text-xs flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded-sm bg-blue-500" />
-              <span className="text-[#64748B]">Grupo Fijo</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded-sm bg-green-500" />
-              <span className="text-[#64748B]">Grupo Personal Variable</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded-sm bg-orange-500" />
-              <span className="text-[#64748B]">Personal</span>
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" className="h-8 text-xs" onClick={handleApplyFilters}>
+              Aplicar filtros
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={handleClearFilters}
+              disabled={!hasActiveFilters && pendingType === 'all' && pendingTarifa === 'all' && pendingStatus === 'all'}
+            >
+              Limpiar filtros
+            </Button>
+            <span className="text-xs text-[#64748B] ml-auto">{filtered.length} clientes encontrados</span>
+          </div>
+        </div>
+
+        {/* Color legend */}
+        <div className="flex gap-4 text-xs flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded-sm bg-blue-500" />
+            <span className="text-[#64748B]">Grupo Fijo</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded-sm bg-green-500" />
+            <span className="text-[#64748B]">Grupo Personal Variable</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded-sm bg-orange-500" />
+            <span className="text-[#64748B]">Personal</span>
           </div>
         </div>
 
@@ -319,12 +377,19 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                       {client.active ? 'Activo' : 'Inactivo'}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <Badge className={cn('text-[10px]', getTypeBadgeStyle(client.profile_type))}>
                       {getProfileTypeLabel(client.profile_type)}
                     </Badge>
                     {client.phone && (
                       <span className="text-xs text-gray-500 truncate">{client.phone}</span>
+                    )}
+                    {client.bank_account ? (
+                      <span className="text-[10px] text-gray-500 bg-slate-100 rounded px-1.5 py-0.5">
+                        🏦 ****{client.bank_account.slice(-4)}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-gray-400">Sin cuenta</span>
                     )}
                   </div>
                 </div>
@@ -347,6 +412,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Teléfono</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Cuenta</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
                   <th className="px-4 py-3 w-12"></th>
                 </tr>
@@ -354,7 +420,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-12 text-gray-400">
+                    <td colSpan={6} className="text-center py-12 text-gray-400">
                       No se encontraron clientes
                     </td>
                   </tr>
@@ -382,6 +448,15 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                       <td className="px-4 py-3.5 hidden md:table-cell">
                         <span className="text-sm text-gray-600">{client.phone || '—'}</span>
                       </td>
+                      <td className="px-4 py-3.5 hidden lg:table-cell">
+                        {client.bank_account ? (
+                          <span className="text-sm text-gray-600">
+                            🏦 ****{client.bank_account.slice(-4)}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3.5">
                         <Badge
                           className={
@@ -407,10 +482,6 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
             </table>
           </div>
         </div>
-
-        <p className="text-xs text-[#64748B]">
-          Mostrando {filtered.length} de {clients.length} clientes
-        </p>
       </div>
 
       <NewClientModal open={showModal} onClose={() => setShowModal(false)} />

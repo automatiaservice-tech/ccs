@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { cn, getDayName, PROFILE_TYPE_LABELS, getProfileTypeBadgeColor, getFixedGroupRateLabel } from '@/lib/utils'
+import { cn, getDayName, PROFILE_TYPE_LABELS, getProfileTypeBadgeColor, getFixedGroupRateLabel, TARIFA_COSTE_SESION } from '@/lib/utils'
 import {
   createSessionAction,
   updateSessionAction,
@@ -25,8 +25,7 @@ import {
   updateSessionClients,
 } from '@/lib/actions/sessions'
 
-// ── Price helpers ─────────────────────────────────────────────────────────────
-// Convert our day convention (0=Mon…6=Sun) to JS Date.getDay() (0=Sun…6=Sat)
+// ── Day convention helper ──────────────────────────────────────────────────────
 function toJsDay(ourDay: number): number {
   return ourDay === 6 ? 0 : ourDay + 1
 }
@@ -34,7 +33,7 @@ function toJsDay(ourDay: number): number {
 function countOccurrencesInCurrentMonth(dayOfWeek: number): number {
   const now = new Date()
   const year = now.getFullYear()
-  const month = now.getMonth() // 0-based
+  const month = now.getMonth()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const jsDay = toJsDay(dayOfWeek)
   let count = 0
@@ -82,6 +81,7 @@ interface Session {
   session_type: string
   max_capacity: number | null
   session_price: number | null
+  duration_minutes?: number | null
   session_clients?: Array<{
     client_id: string
     clients?: Client
@@ -95,13 +95,20 @@ const emptyForm = {
   session_type: 'fixed_group',
   max_capacity: '',
   session_price: '40',
+  duration_minutes: '60',
 }
 
 const DAYS_SHORT = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
 function todayDayIndex() {
-  const js = new Date().getDay() // 0=Sun
-  return js === 0 ? 6 : js - 1 // Convert to 0=Mon…6=Sun
+  const js = new Date().getDay()
+  return js === 0 ? 6 : js - 1
+}
+
+// ── Fixed group session cost helper ───────────────────────────────────────────
+function fixedGroupSessionCost(monthlyFee: number | null | undefined): number {
+  if (!monthlyFee) return 0
+  return TARIFA_COSTE_SESION[monthlyFee] ?? 0
 }
 
 // ── Session price display helpers ─────────────────────────────────────────────
@@ -111,20 +118,25 @@ function SessionPriceLine({ session }: { session: Session }) {
 
   if (session.session_type === 'individual') {
     const price = session.session_price ?? 40
+    const durationHours = (session.duration_minutes ?? 60) / 60
     const perPerson = Math.round((price / clientCount) * 100) / 100
+    const perHour = Math.round((price * clientCount / durationHours) * 100) / 100
     return (
-      <p className="text-xs text-orange-600 mt-1">
-        💶 {perPerson.toFixed(2).replace('.', ',')}€/persona ({clientCount} participante{clientCount !== 1 ? 's' : ''})
-      </p>
+      <div className="mt-1 space-y-0.5">
+        <p className="text-xs text-orange-600">
+          💶 {perPerson.toFixed(2).replace('.', ',')}€/persona
+        </p>
+        <p className="text-xs text-orange-500">
+          ⏱ {perHour.toFixed(2).replace('.', ',')}€/hora
+        </p>
+      </div>
     )
   }
 
   if (session.session_type === 'fixed_group') {
-    const occurrences = countOccurrencesInCurrentMonth(session.day_of_week)
     let total = 0
     for (const sc of session.session_clients || []) {
-      const fee = sc.clients?.monthly_fee
-      if (fee) total += Math.round((fee / occurrences) * 100) / 100
+      total += fixedGroupSessionCost(sc.clients?.monthly_fee)
     }
     if (total === 0) return null
     return (
@@ -184,7 +196,7 @@ function DaySessionList({
   )
 }
 
-// ── Day navigation (shared between mobile and desktop day-view) ───────────────
+// ── Day navigation ─────────────────────────────────────────────────────────────
 function DayNav({
   day,
   onPrev,
@@ -244,7 +256,9 @@ function IndividualPriceEditor({
   const [saving, setSaving] = useState(false)
 
   const priceNum = parseFloat(price) || 0
+  const durationHours = (session.duration_minutes ?? 60) / 60
   const perPerson = participantCount > 0 ? Math.round((priceNum / participantCount) * 100) / 100 : priceNum
+  const perHour = participantCount > 0 ? Math.round((priceNum * participantCount / durationHours) * 100) / 100 : 0
 
   const handleSave = async () => {
     setSaving(true)
@@ -278,9 +292,14 @@ function IndividualPriceEditor({
         </Button>
       </div>
       {participantCount > 0 && (
-        <p className="text-xs text-orange-600">
-          💶 {perPerson.toFixed(2).replace('.', ',')}€/persona ({participantCount} participante{participantCount !== 1 ? 's' : ''})
-        </p>
+        <div className="space-y-0.5">
+          <p className="text-xs text-orange-600">
+            💶 {perPerson.toFixed(2).replace('.', ',')}€/persona ({participantCount} participante{participantCount !== 1 ? 's' : ''})
+          </p>
+          <p className="text-xs text-orange-500">
+            ⏱ {perHour.toFixed(2).replace('.', ',')}€/hora
+          </p>
+        </div>
       )}
     </div>
   )
@@ -297,7 +316,7 @@ function FixedGroupCostBreakdown({
   const occurrences = countOccurrencesInCurrentMonth(session.day_of_week)
   const rows = participants.map((c) => {
     const fee = c.monthly_fee || 0
-    const costPerSession = fee > 0 ? Math.round((fee / occurrences) * 100) / 100 : 0
+    const costPerSession = fixedGroupSessionCost(fee)
     return { client: c, fee, costPerSession }
   })
   const total = rows.reduce((s, r) => s + r.costPerSession, 0)
@@ -349,10 +368,8 @@ export function WeeklySchedule({
 }) {
   const router = useRouter()
 
-  // ── Shared day navigation state (mobile + desktop day-view) ─────────────────
   const [activeDay, setActiveDay] = useState(todayDayIndex)
 
-  // ── Desktop view toggle — persisted in localStorage ─────────────────────────
   const [desktopView, setDesktopView] = useState<'grid' | 'day'>('grid')
   useEffect(() => {
     const saved = localStorage.getItem('schedule-desktop-view')
@@ -363,13 +380,11 @@ export function WeeklySchedule({
     localStorage.setItem('schedule-desktop-view', v)
   }
 
-  // ── Create / Edit form modal ─────────────────────────────────────────────────
   const [showFormModal, setShowFormModal] = useState(false)
   const [editSession, setEditSession] = useState<Session | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [formLoading, setFormLoading] = useState(false)
 
-  // ── Session detail modal (participants + info) ───────────────────────────────
   const [detailSession, setDetailSession] = useState<Session | null>(null)
   const [participantIds, setParticipantIds] = useState<string[]>([])
   const [participantSearch, setParticipantSearch] = useState('')
@@ -399,6 +414,7 @@ export function WeeklySchedule({
       session_type: session.session_type,
       max_capacity: session.max_capacity?.toString() || '',
       session_price: (session.session_price ?? 40).toString(),
+      duration_minutes: (session.duration_minutes ?? 60).toString(),
     })
     setShowFormModal(true)
   }
@@ -414,6 +430,7 @@ export function WeeklySchedule({
         session_type: form.session_type as any,
         max_capacity: form.max_capacity ? parseInt(form.max_capacity) : undefined,
         session_price: form.session_price ? parseFloat(form.session_price) : 40,
+        duration_minutes: form.duration_minutes ? parseInt(form.duration_minutes) : 60,
       }
       if (editSession) {
         await updateSessionAction(editSession.id, data)
@@ -494,7 +511,6 @@ export function WeeklySchedule({
     <>
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        {/* Desktop view toggle — hidden on mobile */}
         <div className="hidden sm:flex items-center rounded-lg border border-[#E2E8F0] p-0.5 gap-0.5 bg-slate-50">
           <button
             onClick={() => switchDesktopView('grid')}
@@ -545,7 +561,7 @@ export function WeeklySchedule({
         <span className="text-slate-400 text-[10px] self-center">· Toca una sesión para ver participantes</span>
       </div>
 
-      {/* ── Mobile: single-day navigation (hidden sm+) ─────────────────────── */}
+      {/* ── Mobile: single-day navigation ── */}
       <div className="sm:hidden space-y-3">
         <DayNav
           day={activeDay}
@@ -557,7 +573,7 @@ export function WeeklySchedule({
         <DaySessionList sessions={activeDaySessions} onOpen={openDetail} />
       </div>
 
-      {/* ── Desktop: grid view ──────────────────────────────────────────────── */}
+      {/* ── Desktop: grid view ── */}
       {desktopView === 'grid' && (
         <div className="hidden sm:block overflow-x-auto pb-2">
           <div
@@ -580,6 +596,7 @@ export function WeeklySchedule({
                     ) : (
                       daySessions.map((s) => {
                         const clientCount = s.session_clients?.length || 0
+                        const durationHours = (s.duration_minutes ?? 60) / 60
                         return (
                           <button
                             key={s.id}
@@ -602,16 +619,24 @@ export function WeeklySchedule({
                               <Users className="h-3 w-3" />
                               <span className="text-[10px]">{clientCount}</span>
                             </div>
-                            {clientCount > 0 && s.session_type === 'individual' && (
-                              <p className="text-[10px] text-orange-600 mt-1 leading-tight">
-                                💶 {(Math.round(((s.session_price ?? 40) / clientCount) * 100) / 100).toFixed(2).replace('.', ',')}€/p
-                              </p>
-                            )}
+                            {clientCount > 0 && s.session_type === 'individual' && (() => {
+                              const price = s.session_price ?? 40
+                              const perPerson = Math.round((price / clientCount) * 100) / 100
+                              const perHour = Math.round((price * clientCount / durationHours) * 100) / 100
+                              return (
+                                <div className="mt-1">
+                                  <p className="text-[10px] text-orange-600 leading-tight">
+                                    💶 {perPerson.toFixed(2).replace('.', ',')}€/p
+                                  </p>
+                                  <p className="text-[10px] text-orange-500 leading-tight">
+                                    ⏱ {perHour.toFixed(2).replace('.', ',')}€/h
+                                  </p>
+                                </div>
+                              )
+                            })()}
                             {clientCount > 0 && s.session_type === 'fixed_group' && (() => {
-                              const occ = countOccurrencesInCurrentMonth(s.day_of_week)
                               const total = (s.session_clients || []).reduce((sum, sc) => {
-                                const fee = sc.clients?.monthly_fee
-                                return sum + (fee ? Math.round((fee / occ) * 100) / 100 : 0)
+                                return sum + fixedGroupSessionCost(sc.clients?.monthly_fee)
                               }, 0)
                               return total > 0 ? (
                                 <p className="text-[10px] text-blue-600 mt-1 leading-tight">
@@ -631,7 +656,7 @@ export function WeeklySchedule({
         </div>
       )}
 
-      {/* ── Desktop: day-list view ──────────────────────────────────────────── */}
+      {/* ── Desktop: day-list view ── */}
       {desktopView === 'day' && (
         <div className="hidden sm:block space-y-3">
           <DayNav
@@ -647,7 +672,7 @@ export function WeeklySchedule({
         </div>
       )}
 
-      {/* ── Session Detail Modal ─────────────────────────────────────────────── */}
+      {/* ── Session Detail Modal ── */}
       <Dialog open={!!detailSession} onOpenChange={(o) => !o && setDetailSession(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           {detailSession && (
@@ -674,7 +699,7 @@ export function WeeklySchedule({
                   </TabsTrigger>
                 </TabsList>
 
-                {/* ── Participants tab ──────────────────────────────── */}
+                {/* ── Participants tab ── */}
                 <TabsContent value="participantes" className="space-y-3 mt-3">
                   {currentParticipants.length > 0 && (
                     <div>
@@ -759,7 +784,7 @@ export function WeeklySchedule({
                   </div>
                 </TabsContent>
 
-                {/* ── Details tab ───────────────────────────────────── */}
+                {/* ── Details tab ── */}
                 <TabsContent value="detalles" className="mt-3 space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="rounded-lg bg-slate-50 border border-[#E2E8F0] p-3">
@@ -786,6 +811,14 @@ export function WeeklySchedule({
                         {detailSession.time.substring(0, 5)}
                       </p>
                     </div>
+                    {detailSession.duration_minutes != null && (
+                      <div className="rounded-lg bg-slate-50 border border-[#E2E8F0] p-3">
+                        <p className="text-[10px] text-[#64748B] uppercase tracking-wide">Duración</p>
+                        <p className="text-slate-800 font-medium mt-0.5">
+                          {detailSession.duration_minutes} min
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* ── Precio (Individual) ── */}
@@ -834,7 +867,7 @@ export function WeeklySchedule({
         </DialogContent>
       </Dialog>
 
-      {/* ── Create / Edit Form Modal ──────────────────────────────────────────── */}
+      {/* ── Create / Edit Form Modal ── */}
       <Dialog open={showFormModal} onOpenChange={(o) => !o && setShowFormModal(false)}>
         <DialogContent>
           <DialogHeader>
@@ -907,21 +940,35 @@ export function WeeklySchedule({
                 />
               </div>
             </div>
-            {form.session_type === 'individual' && (
+            <div className="grid grid-cols-2 gap-4">
+              {form.session_type === 'individual' && (
+                <div className="space-y-1.5">
+                  <Label>Precio por sesión (€)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.session_price}
+                    onChange={(e) => setForm((p) => ({ ...p, session_price: e.target.value }))}
+                    placeholder="40"
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
-                <Label>Precio por sesión (€)</Label>
+                <Label>Duración (minutos)</Label>
                 <Input
                   type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.session_price}
-                  onChange={(e) => setForm((p) => ({ ...p, session_price: e.target.value }))}
-                  placeholder="40"
+                  min="1"
+                  value={form.duration_minutes}
+                  onChange={(e) => setForm((p) => ({ ...p, duration_minutes: e.target.value }))}
+                  placeholder="60"
                 />
-                <p className="text-xs text-[#64748B]">
-                  Precio total de la sesión. Se divide entre los participantes asignados.
-                </p>
               </div>
+            </div>
+            {form.session_type === 'individual' && (
+              <p className="text-xs text-[#64748B]">
+                Precio total de la sesión. Se divide entre los participantes asignados.
+              </p>
             )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowFormModal(false)}>

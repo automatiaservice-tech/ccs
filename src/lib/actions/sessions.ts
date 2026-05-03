@@ -52,6 +52,7 @@ export async function createSessionAction(formData: {
   session_type: SessionType
   max_capacity?: number
   session_price?: number
+  duration_minutes?: number
 }) {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -63,6 +64,7 @@ export async function createSessionAction(formData: {
       session_type: formData.session_type,
       max_capacity: formData.max_capacity || null,
       session_price: formData.session_price ?? 40,
+      duration_minutes: formData.duration_minutes ?? 60,
     })
     .select()
     .single()

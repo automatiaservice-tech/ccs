@@ -81,6 +81,15 @@ export const FIXED_GROUP_RATES = [
   { label: 'TARIFA VIP', value: 50 },
 ]
 
+// Fixed cost per session for each tarifa (monthly_fee → cost per session)
+export const TARIFA_COSTE_SESION: Record<number, number> = {
+  28: 7.00,  // TARIFA 1
+  40: 5.00,  // TARIFA 2
+  50: 4.16,  // TARIFA VIP
+  60: 5.00,  // TARIFA 3
+  80: 5.00,  // TARIFA 4
+}
+
 export function getFixedGroupRateLabel(fee: number | null | undefined): string {
   if (fee == null) return '—'
   const rate = FIXED_GROUP_RATES.find((r) => r.value === fee)

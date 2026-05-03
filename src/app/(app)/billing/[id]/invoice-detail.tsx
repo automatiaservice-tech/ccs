@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { ArrowLeft, Download, CheckCircle, Send, Loader2, Banknote, Building2 } from 'lucide-react'
+import { ArrowLeft, Download, CheckCircle, Send, Loader2, Banknote, Building2, Pencil, Trash2, Save, X, AlertCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +27,7 @@ import {
   getStatusBadgeColor,
   getStatusLabel,
 } from '@/lib/utils'
-import { updateInvoiceStatus, updateClientBankAccount } from '@/lib/actions/billing'
+import { updateInvoiceStatus, updateClientBankAccount, updateInvoiceLines } from '@/lib/actions/billing'
 
 // ── Line categorisation based on description prefix ───────────────────────
 function lineType(description: string): 'fixed' | 'individual' | 'variable' | 'other' {
@@ -41,9 +41,13 @@ function lineType(description: string): 'fixed' | 'individual' | 'variable' | 'o
 function InvoiceSection({
   title,
   lines,
+  editMode,
+  onDeleteLine,
 }: {
   title: string
   lines: any[]
+  editMode?: boolean
+  onDeleteLine?: (id: string) => void
 }) {
   if (lines.length === 0) return null
   const subtotal = lines.reduce((s: number, l: any) => s + l.amount, 0)
@@ -67,6 +71,17 @@ function InvoiceSection({
               <td className="py-2.5 text-sm text-right text-[#0F172A] font-medium w-24">
                 {formatCurrency(line.amount)}
               </td>
+              {editMode && (
+                <td className="py-2.5 w-10 text-right">
+                  <button
+                    onClick={() => onDeleteLine?.(line.id)}
+                    className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                    title="Eliminar línea"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -92,6 +107,37 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
   const [showBankModal, setShowBankModal] = useState(false)
   const [bankIban, setBankIban] = useState('')
   const [savingBank, setSavingBank] = useState(false)
+
+  // ── Edit mode state ──────────────────────────────────────────────────────
+  const [editMode, setEditMode] = useState(false)
+  const [editLines, setEditLines] = useState<any[]>(invoice.invoice_lines || [])
+  const [saving, setSaving] = useState(false)
+
+  const canEdit = invoice.status === 'draft' || invoice.status === 'sent'
+  const editTotal = editLines.reduce((s: number, l: any) => s + l.amount, 0)
+
+  const handleDeleteLine = (lineId: string) => {
+    setEditLines((prev) => prev.filter((l) => l.id !== lineId))
+  }
+
+  const handleSaveEdit = async () => {
+    setSaving(true)
+    try {
+      await updateInvoiceLines(invoice.id, editLines.map((l) => l.id), editTotal)
+      toast.success('Factura actualizada')
+      router.refresh()
+      setEditMode(false)
+    } catch {
+      toast.error('Error al guardar los cambios')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditLines(invoice.invoice_lines || [])
+    setEditMode(false)
+  }
 
   const lastFour = localBankAccount ? localBankAccount.slice(-4) : null
 
@@ -142,14 +188,16 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
   }
 
   // ── Group invoice lines by type ──────────────────────────────────────────
-  const allLines: any[] = invoice.invoice_lines || []
-  const fixedLines = allLines.filter((l) => lineType(l.description) === 'fixed')
-  const individualLines = allLines.filter((l) => lineType(l.description) === 'individual')
-  const variableLines = allLines.filter((l) => lineType(l.description) === 'variable')
-  const otherLines = allLines.filter((l) => lineType(l.description) === 'other')
+  const displayLines = editMode ? editLines : (invoice.invoice_lines || [])
+  const fixedLines = displayLines.filter((l: any) => lineType(l.description) === 'fixed')
+  const individualLines = displayLines.filter((l: any) => lineType(l.description) === 'individual')
+  const variableLines = displayLines.filter((l: any) => lineType(l.description) === 'variable')
+  const otherLines = displayLines.filter((l: any) => lineType(l.description) === 'other')
 
   const hasMultipleSections =
     [fixedLines, individualLines, variableLines, otherLines].filter((g) => g.length > 0).length > 1
+
+  const displayTotal = editMode ? editTotal : invoice.total_amount
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -180,11 +228,31 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => window.print()}>
-            <Download className="h-4 w-4" />
-            Imprimir / PDF
-          </Button>
-          {invoice.status === 'draft' && (
+          {!editMode && (
+            <Button variant="outline" onClick={() => window.print()}>
+              <Download className="h-4 w-4" />
+              Imprimir / PDF
+            </Button>
+          )}
+          {canEdit && !editMode && (
+            <Button variant="outline" onClick={() => setEditMode(true)}>
+              <Pencil className="h-4 w-4" />
+              Editar factura
+            </Button>
+          )}
+          {editMode && (
+            <>
+              <Button variant="outline" onClick={handleCancelEdit} disabled={saving}>
+                <X className="h-4 w-4" />
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveEdit} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Guardar cambios
+              </Button>
+            </>
+          )}
+          {!editMode && invoice.status === 'draft' && (
             <Button
               variant="secondary"
               onClick={() => handleStatusUpdate('sent')}
@@ -194,7 +262,7 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
               Marcar enviada
             </Button>
           )}
-          {invoice.status !== 'paid' && (
+          {!editMode && invoice.status !== 'paid' && (
             <Button
               variant="success"
               onClick={() => handleStatusUpdate('paid')}
@@ -211,33 +279,45 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
         </div>
       </div>
 
+      {/* ── Edit mode warning ── */}
+      {editMode && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 no-print">
+          <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-700">
+            El total se actualizará al eliminar sesiones. Usa el icono <Trash2 className="h-3.5 w-3.5 inline text-red-400" /> para eliminar líneas.
+          </p>
+        </div>
+      )}
+
       {/* ── Datos bancarios ── */}
-      <div className="flex items-center gap-3 no-print -mt-2">
-        {localBankAccount ? (
-          <>
-            <span className="text-sm text-slate-500">
-              🏦 Cuenta: <span className="font-medium text-slate-700">****{lastFour}</span>
-            </span>
-            <button
-              onClick={() => { setBankIban(localBankAccount); setShowBankModal(true) }}
-              className="text-xs text-blue-500 hover:text-blue-600 underline underline-offset-2"
-            >
-              Cambiar
-            </button>
-          </>
-        ) : (
-          <>
-            <span className="text-sm text-slate-400">Sin cuenta bancaria asociada</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setBankIban(''); setShowBankModal(true) }}
-            >
-              Añadir cuenta bancaria
-            </Button>
-          </>
-        )}
-      </div>
+      {!editMode && (
+        <div className="flex items-center gap-3 no-print -mt-2">
+          {localBankAccount ? (
+            <>
+              <span className="text-sm text-slate-500">
+                🏦 Cuenta: <span className="font-medium text-slate-700">****{lastFour}</span>
+              </span>
+              <button
+                onClick={() => { setBankIban(localBankAccount); setShowBankModal(true) }}
+                className="text-xs text-blue-500 hover:text-blue-600 underline underline-offset-2"
+              >
+                Cambiar
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-sm text-slate-400">Sin cuenta bancaria asociada</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setBankIban(''); setShowBankModal(true) }}
+              >
+                Añadir cuenta bancaria
+              </Button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── Invoice card (printable) ── */}
       <Card id="invoice-print">
@@ -302,21 +382,19 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
           {/* ── Line items — grouped by type ── */}
           <div className="space-y-2">
             {hasMultipleSections ? (
-              // Multiple section mode
               <>
-                <InvoiceSection title="Grupo Fijo" lines={fixedLines} />
+                <InvoiceSection title="Grupo Fijo" lines={fixedLines} editMode={editMode} onDeleteLine={handleDeleteLine} />
                 {(fixedLines.length > 0 && (individualLines.length > 0 || variableLines.length > 0)) && (
                   <Separator className="my-1" />
                 )}
-                <InvoiceSection title="Sesiones Personales" lines={individualLines} />
+                <InvoiceSection title="Sesiones Personales" lines={individualLines} editMode={editMode} onDeleteLine={handleDeleteLine} />
                 {(individualLines.length > 0 && variableLines.length > 0) && (
                   <Separator className="my-1" />
                 )}
-                <InvoiceSection title="Grupo Personal Variable" lines={variableLines} />
-                <InvoiceSection title="Otros" lines={otherLines} />
+                <InvoiceSection title="Grupo Personal Variable" lines={variableLines} editMode={editMode} onDeleteLine={handleDeleteLine} />
+                <InvoiceSection title="Otros" lines={otherLines} editMode={editMode} onDeleteLine={handleDeleteLine} />
               </>
             ) : (
-              // Single section — plain table without section header
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#E2E8F0]">
@@ -326,10 +404,11 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
                       Asistentes
                     </th>
                     <th className="text-right py-2 text-xs font-medium text-[#64748B] uppercase">Importe</th>
+                    {editMode && <th className="w-10" />}
                   </tr>
                 </thead>
                 <tbody>
-                  {allLines.map((line: any) => (
+                  {displayLines.map((line: any) => (
                     <tr key={line.id} className="border-b border-[#F1F5F9]">
                       <td className="py-3 text-sm text-slate-600">{formatDate(line.date)}</td>
                       <td className="py-3 text-sm text-slate-700">{line.description}</td>
@@ -339,6 +418,17 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
                       <td className="py-3 text-sm text-right text-[#0F172A] font-medium">
                         {formatCurrency(line.amount)}
                       </td>
+                      {editMode && (
+                        <td className="py-3 text-right">
+                          <button
+                            onClick={() => handleDeleteLine(line.id)}
+                            className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                            title="Eliminar línea"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -353,7 +443,7 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
             <div className="text-right space-y-2">
               <div className="flex items-center gap-8 justify-between">
                 <span className="text-[#64748B] text-sm">Base imponible</span>
-                <span className="text-slate-700 text-sm">{formatCurrency(invoice.total_amount)}</span>
+                <span className="text-slate-700 text-sm">{formatCurrency(displayTotal)}</span>
               </div>
               <div className="flex items-center gap-8 justify-between">
                 <span className="text-[#64748B] text-sm">IVA (0%)</span>
@@ -363,7 +453,7 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
               <div className="flex items-center gap-8 justify-between">
                 <span className="text-lg font-bold text-[#0F172A]">TOTAL</span>
                 <span className="text-xl font-bold text-[#2563EB]">
-                  {formatCurrency(invoice.total_amount)}
+                  {formatCurrency(displayTotal)}
                 </span>
               </div>
             </div>
