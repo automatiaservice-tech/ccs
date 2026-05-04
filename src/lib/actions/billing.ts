@@ -362,8 +362,42 @@ export async function updateInvoiceStatus(
   revalidatePath(`/billing/${id}`)
 }
 
+// ── Safety pre-check ──────────────────────────────────────────────────────
+// Verifica que los IDs pertenecen a facturas reales antes de borrar.
+// NUNCA toca session_clients, clients, attendance_records ni ninguna otra tabla.
+// Si session_clients se ven afectados, el problema está en un trigger de BD.
+async function assertValidInvoiceIds(
+  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
+  invoiceIds: string[]
+): Promise<void> {
+  if (invoiceIds.length === 0) return
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('id')
+    .in('id', invoiceIds)
+
+  if (error) throw new Error(`Error en verificación de seguridad: ${error.message}`)
+
+  const foundIds = new Set((data || []).map((r) => r.id))
+  const invalid = invoiceIds.filter((id) => !foundIds.has(id))
+
+  if (invalid.length > 0) {
+    throw new Error(
+      `SEGURIDAD: ${invalid.length} ID(s) no corresponden a facturas válidas. ` +
+      `Operación cancelada para evitar borrados no deseados en otras tablas.`
+    )
+  }
+}
+
 export async function deleteInvoice(id: string) {
   const supabase = await createClient()
+
+  // Verificación de seguridad: confirmar que el ID es una factura válida
+  await assertValidInvoiceIds(supabase, [id])
+
+  // SOLO se borran: invoice_lines (líneas) e invoices (factura)
+  // NO se toca: session_clients, clients, attendance_records, sessions
   await supabase.from('invoice_lines').delete().eq('invoice_id', id)
   const { error } = await supabase.from('invoices').delete().eq('id', id)
   if (error) throw new Error(`Error deleting invoice: ${error.message}`)
@@ -373,6 +407,12 @@ export async function deleteInvoice(id: string) {
 export async function deleteManyInvoices(ids: string[]) {
   if (ids.length === 0) return
   const supabase = await createClient()
+
+  // Verificación de seguridad: confirmar que todos los IDs son facturas válidas
+  await assertValidInvoiceIds(supabase, ids)
+
+  // SOLO se borran: invoice_lines (líneas) e invoices (facturas)
+  // NO se toca: session_clients, clients, attendance_records, sessions
   await supabase.from('invoice_lines').delete().in('invoice_id', ids)
   const { error } = await supabase.from('invoices').delete().in('id', ids)
   if (error) throw new Error(`Error deleting invoices: ${error.message}`)
