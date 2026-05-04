@@ -259,7 +259,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
               <SelectContent>
                 <SelectItem value="all">Todos los tipos</SelectItem>
                 <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
-                <SelectItem value="variable_group">Grupo Personal Variable</SelectItem>
+
                 <SelectItem value="individual">Personal</SelectItem>
               </SelectContent>
             </Select>
@@ -269,7 +269,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                 <SelectTrigger className="w-44 h-9 text-xs"><SelectValue placeholder="Tarifa" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas las tarifas</SelectItem>
-                  {FIXED_GROUP_RATES.map((r) => <SelectItem key={r.value} value={String(r.value)}>{r.label}</SelectItem>)}
+                  {FIXED_GROUP_RATES.map((r) => <SelectItem key={r.label} value={String(r.value)}>{r.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}

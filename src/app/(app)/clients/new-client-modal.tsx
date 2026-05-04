@@ -23,13 +23,11 @@ import { getSessions } from '@/lib/actions/sessions'
 
 const SESSION_TYPE_BADGE: Record<string, string> = {
   fixed_group: 'bg-blue-50 text-blue-600 border-blue-200',
-  variable_group: 'bg-green-50 text-green-600 border-green-200',
   individual: 'bg-orange-50 text-orange-600 border-orange-200',
 }
 
 const SESSION_TYPE_LABELS: Record<string, string> = {
   fixed_group: 'Grupo Fijo',
-  variable_group: 'Grupo Personal Variable',
   individual: 'Personal',
 }
 
@@ -188,12 +186,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                       Grupo Fijo — cuota mensual fija
                     </div>
                   </SelectItem>
-                  <SelectItem value="variable_group">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
-                      Grupo Personal Variable — pago por sesión
-                    </div>
-                  </SelectItem>
+
                   <SelectItem value="individual">
                     <div className="flex items-center gap-2">
                       <div className="h-2.5 w-2.5 rounded-full bg-orange-500" />
@@ -216,7 +209,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {FIXED_GROUP_RATES.map((r) => (
-                      <SelectItem key={r.value} value={String(r.value)}>
+                      <SelectItem key={r.label} value={String(r.value)}>
                         {r.label} — {formatCurrency(r.value)}
                       </SelectItem>
                     ))}

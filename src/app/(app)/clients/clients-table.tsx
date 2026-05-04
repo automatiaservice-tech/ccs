@@ -41,8 +41,6 @@ function getCardStyle(profile_type: string) {
   switch (profile_type) {
     case 'individual':
       return 'bg-orange-50 border-l-4 border-l-orange-400 border border-orange-200 hover:bg-orange-100'
-    case 'variable_group':
-      return 'bg-green-50 border-l-4 border-l-green-400 border border-green-200 hover:bg-green-100'
     case 'fixed_group':
       return 'bg-blue-50 border-l-4 border-l-blue-400 border border-blue-200 hover:bg-blue-100'
     default:
@@ -54,8 +52,6 @@ function getAvatarStyle(profile_type: string) {
   switch (profile_type) {
     case 'individual':
       return 'bg-orange-100 text-orange-700'
-    case 'variable_group':
-      return 'bg-green-100 text-green-700'
     case 'fixed_group':
       return 'bg-blue-100 text-blue-700'
     default:
@@ -67,8 +63,6 @@ function getTypeBadgeStyle(profile_type: string) {
   switch (profile_type) {
     case 'individual':
       return 'bg-orange-100 text-orange-700 border-orange-300'
-    case 'variable_group':
-      return 'bg-green-100 text-green-700 border-green-300'
     case 'fixed_group':
       return 'bg-blue-100 text-blue-700 border-blue-300'
     default:
@@ -80,8 +74,6 @@ function getTableRowStyle(profile_type: string) {
   switch (profile_type) {
     case 'individual':
       return 'border-l-4 border-l-orange-400 hover:bg-orange-50'
-    case 'variable_group':
-      return 'border-l-4 border-l-green-400 hover:bg-green-50'
     case 'fixed_group':
       return 'border-l-4 border-l-blue-400 hover:bg-blue-50'
     default:
@@ -262,7 +254,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
               <SelectContent>
                 <SelectItem value="all">Todos los tipos</SelectItem>
                 <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
-                <SelectItem value="variable_group">Grupo Personal Variable</SelectItem>
+
                 <SelectItem value="individual">Personal</SelectItem>
               </SelectContent>
             </Select>
@@ -275,7 +267,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                 <SelectContent>
                   <SelectItem value="all">Todas las tarifas</SelectItem>
                   {FIXED_GROUP_RATES.map((r) => (
-                    <SelectItem key={r.value} value={String(r.value)}>{r.label}</SelectItem>
+                    <SelectItem key={r.label} value={String(r.value)}>{r.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

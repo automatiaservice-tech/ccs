@@ -1,5 +1,5 @@
-export type ProfileType = 'fixed_group' | 'variable_group' | 'individual'
-export type SessionType = 'fixed_group' | 'variable_group' | 'individual'
+export type ProfileType = 'fixed_group' | 'individual'
+export type SessionType = 'fixed_group' | 'individual'
 export type InvoiceStatus = 'draft' | 'sent' | 'paid'
 export type ExpenseCategory = 'alquiler' | 'suministros' | 'material' | 'otros'
 

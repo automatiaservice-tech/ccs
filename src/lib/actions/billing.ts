@@ -37,7 +37,7 @@ type LineInput = {
   description: string
   attendees: number | null
   amount: number
-  line_type: 'fixed' | 'individual' | 'variable'
+  line_type: 'fixed' | 'individual'
 }
 
 // ── Build invoice lines for a single client ───────────────────────────────
@@ -97,48 +97,6 @@ async function buildLines(
       }
     }
 
-    lines.sort((a, b) => a.date.localeCompare(b.date))
-    return { lines, totalAmount }
-  }
-
-  // ── VARIABLE GROUP (Grupo Personal Variable): prospective — 40€ ÷ clients assigned to session
-  if (client.profile_type === 'variable_group') {
-    const { data: sessionClients, error: scErr } = await supabase
-      .from('session_clients')
-      .select('sessions(id, name, day_of_week)')
-      .eq('client_id', client.id)
-
-    if (scErr) throw new Error(`Error fetching sessions for client ${client.id}: ${scErr.message}`)
-
-    for (const sc of sessionClients || []) {
-      const session = sc.sessions as unknown as { id: string; name: string; day_of_week: number } | null
-      if (!session) continue
-
-      // Count total clients assigned to this session (not attendance — assigned)
-      const { count: clientCount, error: ccErr } = await supabase
-        .from('session_clients')
-        .select('client_id', { count: 'exact', head: true })
-        .eq('session_id', session.id)
-
-      if (ccErr) throw new Error(`Error counting session clients: ${ccErr.message}`)
-
-      const n = clientCount || 1
-      const amount = Math.round((SESSION_PRICE / n) * 100) / 100
-
-      const dates = getDatesForDayInMonth(session.day_of_week, month, year)
-      for (const date of dates) {
-        lines.push({
-          date,
-          description: `Grupo Personal Variable — ${session.name} (${n} participantes)`,
-          attendees: n,
-          amount,
-          line_type: 'variable',
-        })
-        totalAmount += amount
-      }
-    }
-
-    totalAmount = Math.round(totalAmount * 100) / 100
     lines.sort((a, b) => a.date.localeCompare(b.date))
     return { lines, totalAmount }
   }

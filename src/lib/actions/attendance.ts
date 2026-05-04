@@ -14,9 +14,8 @@ export interface AttendanceEntry {
  * Save attendance for a session on a given date.
  *
  * Pricing rules (driven by CLIENT profile_type, not session type):
- *   - fixed_group  → cost = 0  (billed via monthly flat fee)
- *   - variable_group → cost = 40 / total_attendees_this_session_today
- *   - individual   → cost = 40 (always, regardless of session type)
+ *   - fixed_group → cost = 0  (billed via monthly flat fee)
+ *   - individual  → cost = 40 (always, regardless of session type)
  */
 export async function saveAttendance(
   sessionId: string,
@@ -38,9 +37,6 @@ export async function saveAttendance(
     (clients || []).map((c) => [c.id, c.profile_type])
   )
 
-  // Total attendees count (used for variable_group proration)
-  const attendeesCount = entries.filter((e) => e.attended).length
-
   // Delete existing records for this session+date (idempotent save)
   await supabase
     .from('attendance_records')
@@ -56,11 +52,6 @@ export async function saveAttendance(
       const pt = profileOf[entry.client_id] ?? 'individual'
       if (pt === 'fixed_group') {
         cost = 0
-      } else if (pt === 'variable_group') {
-        cost =
-          attendeesCount > 0
-            ? Math.round((SESSION_PRICE / attendeesCount) * 100) / 100
-            : 0
       } else {
         // individual (and any unknown type) → flat 40 €
         cost = SESSION_PRICE

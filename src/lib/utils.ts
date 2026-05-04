@@ -37,7 +37,6 @@ export function getDayName(day: number): string {
 // ── Centralised label map — update here to change everywhere ──────────────
 export const PROFILE_TYPE_LABELS: Record<string, string> = {
   fixed_group: 'Grupo Fijo',
-  variable_group: 'Grupo Personal Variable',
   individual: 'Personal',
 }
 
@@ -48,7 +47,6 @@ export function getProfileTypeLabel(type: string): string {
 export function getProfileTypeBadgeColor(type: string): string {
   const colors: Record<string, string> = {
     fixed_group: 'bg-blue-50 text-blue-600 border-blue-200',
-    variable_group: 'bg-green-50 text-green-600 border-green-200',
     individual: 'bg-orange-50 text-orange-600 border-orange-200',
   }
   return colors[type] || 'bg-gray-50 text-gray-500 border-gray-200'
@@ -76,15 +74,16 @@ export function getStatusLabel(status: string): string {
 export const FIXED_GROUP_RATES = [
   { label: 'TARIFA 1', value: 28 },
   { label: 'TARIFA 2', value: 40 },
+  { label: 'TARIFA VIP 1', value: 40 },
+  { label: 'TARIFA VIP', value: 50 },
   { label: 'TARIFA 3', value: 60 },
   { label: 'TARIFA 4', value: 80 },
-  { label: 'TARIFA VIP', value: 50 },
 ]
 
 // Fixed cost per session for each tarifa (monthly_fee → cost per session)
 export const TARIFA_COSTE_SESION: Record<number, number> = {
   28: 7.00,  // TARIFA 1
-  40: 5.00,  // TARIFA 2
+  40: 5.00,  // TARIFA 2 y TARIFA VIP 1
   50: 4.16,  // TARIFA VIP
   60: 5.00,  // TARIFA 3
   80: 5.00,  // TARIFA 4

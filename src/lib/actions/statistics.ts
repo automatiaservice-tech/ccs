@@ -207,17 +207,15 @@ export async function getRevenueByTypeStats() {
       .eq('status', 'paid')
 
     let fixed_group = 0
-    let variable_group = 0
     let individual = 0
 
     ;(invoices || []).forEach((inv) => {
       const pt = profileOf[inv.client_id]
       if (pt === 'fixed_group') fixed_group += inv.total_amount
-      else if (pt === 'variable_group') variable_group += inv.total_amount
       else if (pt === 'individual') individual += inv.total_amount
     })
 
-    result.push({ month: monthLabel, 'Grupo Fijo': fixed_group, 'Grupo Personal Variable': variable_group, Personal: individual })
+    result.push({ month: monthLabel, 'Grupo Fijo': fixed_group, Personal: individual })
   }
 
   return result

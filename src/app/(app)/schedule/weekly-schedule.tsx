@@ -47,13 +47,11 @@ const DAYS = [0, 1, 2, 3, 4, 5, 6]
 
 const SESSION_TYPE_COLORS: Record<string, string> = {
   fixed_group: 'border-l-blue-500 bg-blue-50 hover:bg-blue-100',
-  variable_group: 'border-l-green-500 bg-green-50 hover:bg-green-100',
   individual: 'border-l-orange-500 bg-orange-50 hover:bg-orange-100',
 }
 
 const SESSION_TYPE_BADGE: Record<string, string> = {
   fixed_group: 'bg-blue-50 text-blue-600 border-blue-200',
-  variable_group: 'bg-green-50 text-green-600 border-green-200',
   individual: 'bg-orange-50 text-orange-600 border-orange-200',
 }
 
@@ -61,7 +59,6 @@ const SESSION_TYPE_LABELS = PROFILE_TYPE_LABELS
 
 const TYPE_DOT: Record<string, string> = {
   fixed_group: 'bg-blue-500',
-  variable_group: 'bg-green-500',
   individual: 'bg-orange-500',
 }
 
@@ -919,7 +916,6 @@ export function WeeklySchedule({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
-                    <SelectItem value="variable_group">Grupo Personal Variable</SelectItem>
                     <SelectItem value="individual">Personal</SelectItem>
                   </SelectContent>
                 </Select>

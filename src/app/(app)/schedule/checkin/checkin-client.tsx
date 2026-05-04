@@ -33,16 +33,11 @@ interface Session {
 /**
  * Cost preview for a single client.
  * Rules (driven by CLIENT profile_type, not session type):
- *   - fixed_group   → "Cuota fija"
- *   - variable_group → 40 / total_attendees
- *   - individual    → 40 € flat
+ *   - fixed_group → "Cuota fija"
+ *   - individual  → 40 € flat
  */
-function costPreview(client: Client, attendeesCount: number): string {
+function costPreview(client: Client): string {
   if (client.profile_type === 'fixed_group') return 'Cuota fija'
-  if (client.profile_type === 'variable_group') {
-    return attendeesCount > 0 ? formatCurrency(SESSION_PRICE / attendeesCount) : '—'
-  }
-  // individual (or unknown)
   return formatCurrency(SESSION_PRICE)
 }
 
@@ -91,7 +86,6 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
 
   // Counts
   const attendeesCount = Object.values(attendance).filter(Boolean).length
-  const hasVariableClients = activeClients.some((c) => c.profile_type === 'variable_group')
 
   const handleSave = async () => {
     if (!selectedSession) return
@@ -205,11 +199,6 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
                       ? 'Desmarcar todos'
                       : 'Marcar todos'}
                   </button>
-                  {hasVariableClients && attendeesCount > 0 && (
-                    <span className="text-xs text-[#64748B]">
-                      Variable: {formatCurrency(SESSION_PRICE / attendeesCount)} / persona
-                    </span>
-                  )}
                 </div>
 
                 {activeClients.map((client) => (
@@ -240,7 +229,7 @@ export function CheckinClient({ sessions }: { sessions: Session[] }) {
                       </div>
                     </div>
                     <span className="text-sm font-medium text-slate-600 shrink-0 ml-2">
-                      {attendance[client.id] ? costPreview(client, attendeesCount) : '—'}
+                      {attendance[client.id] ? costPreview(client) : '—'}
                     </span>
                   </label>
                 ))}

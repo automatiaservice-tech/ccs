@@ -295,7 +295,6 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
-                      <SelectItem value="variable_group">Grupo Personal Variable</SelectItem>
                       <SelectItem value="individual">Personal</SelectItem>
                     </SelectContent>
                   </Select>
@@ -380,7 +379,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                       </SelectTrigger>
                       <SelectContent>
                         {FIXED_GROUP_RATES.map((r) => (
-                          <SelectItem key={r.value} value={String(r.value)}>
+                          <SelectItem key={r.label} value={String(r.value)}>
                             {r.label} — {formatCurrency(r.value)}
                           </SelectItem>
                         ))}

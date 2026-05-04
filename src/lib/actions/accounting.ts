@@ -149,7 +149,6 @@ export async function getAccountingSummary(month: number, year: number) {
 
   const byType: Record<string, number> = {
     fixed_group: 0,
-    variable_group: 0,
     individual: 0,
   }
 
@@ -183,7 +182,6 @@ export async function getAccountingSummary(month: number, year: number) {
     netProfit: totalIncome - totalExpenses,
     incomeByType: [
       { name: 'Grupo Fijo', value: byType.fixed_group, color: '#3b82f6' },
-      { name: 'Grupo Personal Variable', value: byType.variable_group, color: '#22c55e' },
       { name: 'Personal', value: byType.individual, color: '#f97316' },
     ],
   }
