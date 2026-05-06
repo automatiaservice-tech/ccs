@@ -5,7 +5,7 @@ import { WeeklySchedule } from './weekly-schedule'
 export default async function SchedulePage() {
   const [sessions, clients] = await Promise.all([
     getSessions(),
-    getClients(),
+    getClients({ active: true }),
   ])
 
   return (

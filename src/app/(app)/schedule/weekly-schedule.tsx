@@ -487,10 +487,9 @@ export function WeeklySchedule({
     return allClients.filter(
       (c) =>
         !participantIds.includes(c.id) &&
-        c.name.toLowerCase().includes(search) &&
-        c.profile_type === detailSession?.session_type
+        c.name.toLowerCase().includes(search)
     )
-  }, [allClients, participantIds, participantSearch, detailSession])
+  }, [allClients, participantIds, participantSearch])
 
   const activeDaySessions = useMemo(
     () =>
@@ -741,9 +740,9 @@ export function WeeklySchedule({
                         <p className="text-sm text-slate-400 text-center py-4">
                           {participantSearch
                             ? 'Sin resultados'
-                            : allClients.filter((c) => c.profile_type === detailSession?.session_type).length === 0
-                              ? `No hay clientes de tipo ${SESSION_TYPE_LABELS[detailSession?.session_type ?? ''] ?? ''} registrados`
-                              : 'Todos los clientes de este tipo ya están asignados'}
+                            : allClients.length === 0
+                              ? 'No hay clientes activos registrados'
+                              : 'Todos los clientes activos ya están asignados'}
                         </p>
                       ) : (
                         availableClients.map((client) => (
