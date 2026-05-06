@@ -55,8 +55,41 @@ async function buildLines(
   let totalAmount = 0
   const mm = String(month).padStart(2, '0')
 
-  // ── FIXED GROUP: flat monthly fee ────────────────────────────────────────
+  // ── FIXED GROUP: flat monthly fee (no individual sessions needed) ─────────
+  // Short-circuit before querying sessions — identical to original behavior
   if (client.profile_type === 'fixed_group') {
+    // Check if this client also has individual sessions (mixed case)
+    const { data: sessionClients, error: scErr } = await supabase
+      .from('session_clients')
+      .select('sessions(id, name, day_of_week, session_type, session_price)')
+      .eq('client_id', client.id)
+
+    if (scErr) throw new Error(`Error fetching sessions for client ${client.id}: ${scErr.message}`)
+
+    type SessionRow = { id: string; name: string; day_of_week: number; session_type: string; session_price: number | null }
+    const sessions = (sessionClients || [])
+      .map(sc => sc.sessions as unknown as SessionRow | null)
+      .filter((s): s is SessionRow => s !== null)
+
+    const hasIndividualSessions = sessions.some(s => s.session_type === 'individual')
+
+    // ── PURE fixed_group: original behavior ─────────────────────────────────
+    if (!hasIndividualSessions) {
+      const amount = client.monthly_fee || 0
+      if (amount > 0) {
+        lines.push({
+          date: `${year}-${mm}-01`,
+          description: 'Cuota mensual fija',
+          attendees: null,
+          amount,
+          line_type: 'fixed',
+        })
+        totalAmount = amount
+      }
+      return { lines, totalAmount }
+    }
+
+    // ── MIXED: fixed fee + individual session occurrences ───────────────────
     const amount = client.monthly_fee || 0
     if (amount > 0) {
       lines.push({
@@ -66,8 +99,39 @@ async function buildLines(
         amount,
         line_type: 'fixed',
       })
-      totalAmount = amount
+      totalAmount += amount
     }
+
+    for (const session of sessions.filter(s => s.session_type === 'individual')) {
+      // Count total participants assigned to this session to split the price
+      const { count: participantCount, error: countErr } = await supabase
+        .from('session_clients')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_id', session.id)
+
+      if (countErr) throw new Error(`Error counting participants for session ${session.id}: ${countErr.message}`)
+
+      const participants = participantCount || 1
+      const pricePerPerson =
+        session.session_price != null
+          ? Math.round((session.session_price / participants) * 100) / 100
+          : SESSION_PRICE
+
+      const dates = getDatesForDayInMonth(session.day_of_week, month, year)
+      for (const date of dates) {
+        lines.push({
+          date,
+          description: `Sesión personal — ${session.name}`,
+          attendees: participants,
+          amount: pricePerPerson,
+          line_type: 'individual',
+        })
+        totalAmount += pricePerPerson
+      }
+    }
+
+    totalAmount = Math.round(totalAmount * 100) / 100
+    lines.sort((a, b) => a.date.localeCompare(b.date))
     return { lines, totalAmount }
   }
 
