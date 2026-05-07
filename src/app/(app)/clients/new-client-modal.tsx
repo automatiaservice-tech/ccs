@@ -131,7 +131,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
 
   // When profile_type changes, clear session selection
   const handleProfileTypeChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, profile_type: value as any, session_ids: [] }))
+    setFormData((prev) => ({ ...prev, profile_type: value as any, session_ids: [], monthly_fee: '' }))
   }
 
   // Sessions grouped by day for better display
@@ -215,6 +215,29 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {formData.profile_type === 'individual' && (
+              <div className="col-span-2 space-y-1.5">
+                <Label>Tarifa especial por sesión (opcional)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.monthly_fee}
+                  onChange={(e) => setFormData((p) => ({ ...p, monthly_fee: e.target.value }))}
+                  placeholder="Sin tarifa especial — se repartirá el coste de la sesión"
+                />
+                {formData.monthly_fee ? (
+                  <p className="text-xs text-[#64748B]">
+                    Se cobrará {formatCurrency(parseFloat(formData.monthly_fee))} por sesión (tarifa fija especial)
+                  </p>
+                ) : (
+                  <p className="text-xs text-[#64748B]">
+                    Sin tarifa especial: se facturará la parte proporcional del coste de la sesión
+                  </p>
+                )}
               </div>
             )}
 

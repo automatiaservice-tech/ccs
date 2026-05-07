@@ -113,9 +113,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
         ? new Date(form.birth_date).toISOString().split('T')[0]
         : null
 
-      const monthlyFee = form.profile_type === 'fixed_group'
-        ? (form.monthly_fee ? parseFloat(form.monthly_fee) : null)
-        : null
+      const monthlyFee = form.monthly_fee ? parseFloat(form.monthly_fee) : null
 
       await updateClientAction(client.id, {
         name: form.name,
@@ -283,11 +281,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                     value={form.profile_type}
                     onValueChange={(v) => {
                       const next = v as typeof form.profile_type
-                      setForm((p) => ({
-                        ...p,
-                        profile_type: next,
-                        monthly_fee: next !== 'fixed_group' ? '' : p.monthly_fee,
-                      }))
+                      setForm((p) => ({ ...p, profile_type: next, monthly_fee: '' }))
                     }}
                   >
                     <SelectTrigger>
@@ -388,6 +382,29 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                     {form.monthly_fee && (
                       <p className="text-xs text-[#64748B]">
                         {getFixedGroupRateLabel(parseFloat(form.monthly_fee))}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {form.profile_type === 'individual' && (
+                  <div className="space-y-1.5">
+                    <Label>Tarifa especial por sesión (opcional)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form.monthly_fee}
+                      onChange={(e) => setForm((p) => ({ ...p, monthly_fee: e.target.value }))}
+                      placeholder="Sin tarifa especial — se repartirá el coste de la sesión"
+                    />
+                    {form.monthly_fee ? (
+                      <p className="text-xs text-[#64748B]">
+                        Se cobrará {formatCurrency(parseFloat(form.monthly_fee))} por sesión (tarifa fija especial)
+                      </p>
+                    ) : (
+                      <p className="text-xs text-[#64748B]">
+                        Sin tarifa especial: se facturará la parte proporcional del coste de la sesión
                       </p>
                     )}
                   </div>

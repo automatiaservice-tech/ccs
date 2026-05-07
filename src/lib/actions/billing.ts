@@ -135,32 +135,56 @@ async function buildLines(
     return { lines, totalAmount }
   }
 
-  // ── INDIVIDUAL (Personal): prospective — 40€ × session occurrences in month
+  // ── INDIVIDUAL (Personal): split session price proportionally, or apply special rate
   if (client.profile_type === 'individual') {
     const { data: sessionClients, error: scErr } = await supabase
       .from('session_clients')
-      .select('sessions(id, name, day_of_week)')
+      .select('sessions(id, name, day_of_week, session_price)')
       .eq('client_id', client.id)
 
     if (scErr) throw new Error(`Error fetching sessions for client ${client.id}: ${scErr.message}`)
 
+    // If monthly_fee is set on an individual client, it acts as a fixed special rate per session
+    const specialRate = client.monthly_fee
+
     for (const sc of sessionClients || []) {
-      const session = sc.sessions as unknown as { id: string; name: string; day_of_week: number } | null
+      const session = sc.sessions as unknown as { id: string; name: string; day_of_week: number; session_price: number | null } | null
       if (!session) continue
+
+      let pricePerPerson: number
+      let participants: number | null = null
+
+      if (specialRate != null) {
+        // Client has a negotiated special rate — charge it flat regardless of group size
+        pricePerPerson = specialRate
+      } else {
+        // Split the session price among all participants
+        const { count: participantCount, error: countErr } = await supabase
+          .from('session_clients')
+          .select('*', { count: 'exact', head: true })
+          .eq('session_id', session.id)
+
+        if (countErr) throw new Error(`Error counting participants for session ${session.id}: ${countErr.message}`)
+
+        participants = participantCount || 1
+        const sessionPrice = session.session_price ?? SESSION_PRICE
+        pricePerPerson = Math.round((sessionPrice / participants) * 100) / 100
+      }
 
       const dates = getDatesForDayInMonth(session.day_of_week, month, year)
       for (const date of dates) {
         lines.push({
           date,
           description: `Sesión personal — ${session.name}`,
-          attendees: null,
-          amount: SESSION_PRICE,
+          attendees: participants,
+          amount: pricePerPerson,
           line_type: 'individual',
         })
-        totalAmount += SESSION_PRICE
+        totalAmount += pricePerPerson
       }
     }
 
+    totalAmount = Math.round(totalAmount * 100) / 100
     lines.sort((a, b) => a.date.localeCompare(b.date))
     return { lines, totalAmount }
   }
