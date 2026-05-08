@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { Plus, Search, ChevronRight, ArrowUpDown, MoreVertical, Loader2, Trash2, UserCheck, UserX, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -147,26 +147,39 @@ function ClientMenu({ client, onDelete, onToggleActive }: ClientMenuProps) {
 }
 
 export function ClientsTable({ initialClients }: ClientsTableProps) {
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const router = useRouter()
+
   const [clients, setClients] = useState(initialClients)
-  const [search, setSearch] = useState('')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('alpha')
+  const [search, setSearch] = useState(searchParams.get('q') ?? '')
+  const [sortOrder, setSortOrder] = useState<SortOrder>((searchParams.get('orden') as SortOrder) ?? 'alpha')
   const [showModal, setShowModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const router = useRouter()
 
-  // ── Staged filters ─────────────────────────────────────────────────────
-  const [pendingType, setPendingType] = useState('all')
-  const [pendingTarifa, setPendingTarifa] = useState('all')
-  const [pendingStatus, setPendingStatus] = useState('all')
-  const [activeType, setActiveType] = useState('all')
-  const [activeTarifa, setActiveTarifa] = useState('all')
-  const [activeStatus, setActiveStatus] = useState('all')
+  // ── Staged filters (initialized from URL) ──────────────────────────────
+  const [pendingType, setPendingType] = useState(searchParams.get('tipo') ?? 'all')
+  const [pendingTarifa, setPendingTarifa] = useState(searchParams.get('tarifa') ?? 'all')
+  const [pendingStatus, setPendingStatus] = useState(searchParams.get('estado') ?? 'all')
+  const [activeType, setActiveType] = useState(searchParams.get('tipo') ?? 'all')
+  const [activeTarifa, setActiveTarifa] = useState(searchParams.get('tarifa') ?? 'all')
+  const [activeStatus, setActiveStatus] = useState(searchParams.get('estado') ?? 'all')
+
+  const buildURL = (params: Record<string, string>) => {
+    const sp = new URLSearchParams()
+    Object.entries(params).forEach(([k, v]) => {
+      if (v && v !== 'all') sp.set(k, v)
+    })
+    const qs = sp.toString()
+    return qs ? `${pathname}?${qs}` : pathname
+  }
 
   const handleApplyFilters = () => {
     setActiveType(pendingType)
     setActiveTarifa(pendingTarifa)
     setActiveStatus(pendingStatus)
+    router.replace(buildURL({ tipo: pendingType, tarifa: pendingTarifa, estado: pendingStatus, orden: sortOrder, q: search }))
   }
 
   const handleClearFilters = () => {
@@ -176,6 +189,12 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
     setActiveType('all')
     setActiveTarifa('all')
     setActiveStatus('all')
+    router.replace(pathname)
+  }
+
+  const handleSortChange = (v: SortOrder) => {
+    setSortOrder(v)
+    router.replace(buildURL({ tipo: activeType, tarifa: activeTarifa, estado: activeStatus, orden: v, q: search }))
   }
 
   const hasActiveFilters = activeType !== 'all' || activeTarifa !== 'all' || activeStatus !== 'all'
@@ -284,7 +303,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
               </SelectContent>
             </Select>
 
-            <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
+            <Select value={sortOrder} onValueChange={(v) => handleSortChange(v as SortOrder)}>
               <SelectTrigger className="w-52 h-9 text-xs">
                 <ArrowUpDown className="h-3.5 w-3.5 mr-1 shrink-0" />
                 <SelectValue placeholder="Ordenar" />

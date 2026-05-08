@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { getClients } from '@/lib/actions/clients'
 import { ClientsTable } from './clients-table'
 
@@ -13,7 +14,9 @@ export default async function ClientsPage() {
         </div>
       </div>
 
-      <ClientsTable initialClients={clients} />
+      <Suspense>
+        <ClientsTable initialClients={clients} />
+      </Suspense>
     </div>
   )
 }

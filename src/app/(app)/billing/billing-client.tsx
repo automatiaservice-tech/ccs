@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 import { Plus, Loader2, ChevronRight, Trash2, PlusCircle, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -27,21 +27,32 @@ const YEARS = Array.from({ length: 5 }, (_, i) => {
 })
 
 export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
   const router = useRouter()
   const now = new Date()
 
-  // ── Staged filters ──────────────────────────────────────────────────────
-  const [pendingMonth, setPendingMonth] = useState('all')
-  const [pendingYear, setPendingYear] = useState('all')
-  const [pendingStatus, setPendingStatus] = useState('all')
-  const [pendingClientType, setPendingClientType] = useState('all')
-  const [pendingTarifa, setPendingTarifa] = useState('all')
+  // ── Staged filters (initialized from URL) ──────────────────────────────
+  const [pendingMonth, setPendingMonth] = useState(searchParams.get('mes') ?? 'all')
+  const [pendingYear, setPendingYear] = useState(searchParams.get('año') ?? 'all')
+  const [pendingStatus, setPendingStatus] = useState(searchParams.get('estado') ?? 'all')
+  const [pendingClientType, setPendingClientType] = useState(searchParams.get('tipo') ?? 'all')
+  const [pendingTarifa, setPendingTarifa] = useState(searchParams.get('tarifa') ?? 'all')
 
-  const [activeMonth, setActiveMonth] = useState('all')
-  const [activeYear, setActiveYear] = useState('all')
-  const [activeStatus, setActiveStatus] = useState('all')
-  const [activeClientType, setActiveClientType] = useState('all')
-  const [activeTarifa, setActiveTarifa] = useState('all')
+  const [activeMonth, setActiveMonth] = useState(searchParams.get('mes') ?? 'all')
+  const [activeYear, setActiveYear] = useState(searchParams.get('año') ?? 'all')
+  const [activeStatus, setActiveStatus] = useState(searchParams.get('estado') ?? 'all')
+  const [activeClientType, setActiveClientType] = useState(searchParams.get('tipo') ?? 'all')
+  const [activeTarifa, setActiveTarifa] = useState(searchParams.get('tarifa') ?? 'all')
+
+  const buildURL = (params: Record<string, string>) => {
+    const sp = new URLSearchParams()
+    Object.entries(params).forEach(([k, v]) => {
+      if (v && v !== 'all') sp.set(k, v)
+    })
+    const qs = sp.toString()
+    return qs ? `${pathname}?${qs}` : pathname
+  }
 
   const handleApplyFilters = () => {
     setActiveMonth(pendingMonth)
@@ -50,6 +61,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
     setActiveClientType(pendingClientType)
     setActiveTarifa(pendingTarifa)
     setSelectedIds(new Set())
+    router.replace(buildURL({ mes: pendingMonth, año: pendingYear, estado: pendingStatus, tipo: pendingClientType, tarifa: pendingTarifa }))
   }
 
   const handleClearFilters = () => {
@@ -58,6 +70,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
     setActiveMonth('all'); setActiveYear('all'); setActiveStatus('all')
     setActiveClientType('all'); setActiveTarifa('all')
     setSelectedIds(new Set())
+    router.replace(pathname)
   }
 
   const hasActiveFilters =

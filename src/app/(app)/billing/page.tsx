@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { getInvoices } from '@/lib/actions/billing'
 import { BillingClient } from './billing-client'
 
@@ -11,7 +12,9 @@ export default async function BillingPage() {
         <p className="text-[#64748B] text-sm mt-1">{invoices.length} facturas en total</p>
       </div>
 
-      <BillingClient initialInvoices={invoices} />
+      <Suspense>
+        <BillingClient initialInvoices={invoices} />
+      </Suspense>
     </div>
   )
 }
