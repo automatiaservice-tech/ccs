@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { cn, getDayName, PROFILE_TYPE_LABELS, getProfileTypeBadgeColor, getFixedGroupRateLabel, TARIFA_COSTE_SESION } from '@/lib/utils'
+import { cn, getDayName, PROFILE_TYPE_LABELS, getProfileTypeBadgeColor, getFixedGroupRateLabel, TARIFA_COSTE_SESION, TARIFA_COSTE_SESION_BY_ID } from '@/lib/utils'
 import {
   createSessionAction,
   updateSessionAction,
@@ -68,6 +68,7 @@ interface Client {
   active: boolean
   profile_type: string
   monthly_fee?: number | null
+  rate_id?: string | null
 }
 
 interface Session {
@@ -103,7 +104,8 @@ function todayDayIndex() {
 }
 
 // ── Fixed group session cost helper ───────────────────────────────────────────
-function fixedGroupSessionCost(monthlyFee: number | null | undefined): number {
+function fixedGroupSessionCost(monthlyFee: number | null | undefined, rateId?: string | null): number {
+  if (rateId) return TARIFA_COSTE_SESION_BY_ID[rateId] ?? 0
   if (!monthlyFee) return 0
   return TARIFA_COSTE_SESION[monthlyFee] ?? 0
 }
@@ -131,7 +133,7 @@ function SessionPriceLine({ session }: { session: Session }) {
   if (session.session_type === 'fixed_group') {
     let total = 0
     for (const sc of session.session_clients || []) {
-      total += fixedGroupSessionCost(sc.clients?.monthly_fee)
+      total += fixedGroupSessionCost(sc.clients?.monthly_fee, sc.clients?.rate_id)
     }
     if (total === 0) return null
     return (
@@ -309,7 +311,7 @@ function FixedGroupCostBreakdown({
   const occurrences = countOccurrencesInCurrentMonth(session.day_of_week)
   const rows = participants.map((c) => {
     const fee = c.monthly_fee || 0
-    const costPerSession = fixedGroupSessionCost(fee)
+    const costPerSession = fixedGroupSessionCost(fee, c.rate_id)
     return { client: c, fee, costPerSession }
   })
   const total = rows.reduce((s, r) => s + r.costPerSession, 0)
@@ -331,7 +333,7 @@ function FixedGroupCostBreakdown({
           {rows.map(({ client, fee, costPerSession }) => (
             <tr key={client.id} className="border-b border-[#F1F5F9]">
               <td className="px-3 py-2 text-slate-800">{client.name}</td>
-              <td className="px-3 py-2 text-[#64748B] text-xs">{getFixedGroupRateLabel(fee)}</td>
+              <td className="px-3 py-2 text-[#64748B] text-xs">{getFixedGroupRateLabel(fee, client.rate_id)}</td>
               <td className="px-3 py-2 text-right text-slate-700 font-medium">
                 {costPerSession.toFixed(2).replace('.', ',')}€
               </td>
@@ -627,7 +629,7 @@ export function WeeklySchedule({
                             })()}
                             {clientCount > 0 && s.session_type === 'fixed_group' && (() => {
                               const total = (s.session_clients || []).reduce((sum, sc) => {
-                                return sum + fixedGroupSessionCost(sc.clients?.monthly_fee)
+                                return sum + fixedGroupSessionCost(sc.clients?.monthly_fee, sc.clients?.rate_id)
                               }, 0)
                               return total > 0 ? (
                                 <p className="text-[10px] text-blue-600 mt-1 leading-tight">

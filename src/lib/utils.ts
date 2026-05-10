@@ -72,29 +72,48 @@ export function getStatusLabel(status: string): string {
 
 // ── Fixed group rate tiers ────────────────────────────────────────────────────
 export const FIXED_GROUP_RATES = [
-  { label: 'TARIFA 1', value: 28 },
-  { label: 'TARIFA 2', value: 40 },
-  { label: 'TARIFA 3', value: 60 },
-  { label: 'TARIFA 4', value: 80 },
-  { label: 'TARIFA VIP 1', value: 40 },
-  { label: 'TARIFA VIP', value: 50 },
+  { id: 'tarifa_1', label: 'TARIFA 1', value: 28 },
+  { id: 'tarifa_2', label: 'TARIFA 2', value: 40 },
+  { id: 'tarifa_vip1', label: 'TARIFA VIP 1', value: 40 },
+  { id: 'tarifa_3', label: 'TARIFA 3', value: 60 },
+  { id: 'tarifa_4', label: 'TARIFA 4', value: 80 },
+  { id: 'tarifa_vip', label: 'TARIFA VIP', value: 50 },
 ]
 
-// Fixed cost per session for each tarifa (monthly_fee → cost per session)
-export const TARIFA_COSTE_SESION: Record<number, number> = {
-  28: 7.00,  // TARIFA 1
-  40: 5.00,  // TARIFA 2 y TARIFA VIP 1
-  50: 4.16,  // TARIFA VIP
-  60: 5.00,  // TARIFA 3
-  80: 5.00,  // TARIFA 4
+// Fixed cost per session by rate_id (preferred)
+export const TARIFA_COSTE_SESION_BY_ID: Record<string, number> = {
+  tarifa_1: 7.00,
+  tarifa_2: 5.00,
+  tarifa_vip1: 5.00,
+  tarifa_3: 5.00,
+  tarifa_4: 5.00,
+  tarifa_vip: 4.16,
 }
 
-export function getFixedGroupRateLabel(fee: number | null | undefined): string {
+// Fixed cost per session by monthly_fee value — kept for backward compat
+export const TARIFA_COSTE_SESION: Record<number, number> = {
+  28: 7.00,
+  40: 5.00,
+  50: 4.16,
+  60: 5.00,
+  80: 5.00,
+}
+
+export function getFixedGroupRateLabel(fee: number | null | undefined, rateId?: string | null): string {
+  const fmt = (v: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(v)
+  if (rateId) {
+    const rate = FIXED_GROUP_RATES.find((r) => r.id === rateId)
+    if (rate) return `${rate.label} — ${fmt(rate.value)}`
+  }
   if (fee == null) return '—'
+  // Fallback: first match by value (backward compat for clients without rate_id)
   const rate = FIXED_GROUP_RATES.find((r) => r.value === fee)
-  return rate
-    ? `${rate.label} — ${new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(fee)}`
-    : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(fee)
+  return rate ? `${rate.label} — ${fmt(fee)}` : fmt(fee)
+}
+
+export function getRateLabelById(rateId: string | null | undefined): string {
+  if (!rateId) return '—'
+  return FIXED_GROUP_RATES.find((r) => r.id === rateId)?.label ?? rateId
 }
 
 export function calculateAge(birthDate: string | Date): number {

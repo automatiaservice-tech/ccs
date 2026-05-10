@@ -8,7 +8,7 @@ export async function getSessions() {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('sessions')
-    .select('*, session_clients(client_id, clients(id, name, active, profile_type, monthly_fee))')
+    .select('*, session_clients(client_id, clients(id, name, active, profile_type, monthly_fee, rate_id))')
     .order('day_of_week')
     .order('time')
 

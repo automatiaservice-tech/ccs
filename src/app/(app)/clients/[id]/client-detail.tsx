@@ -85,6 +85,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
     phone: client.phone || '',
     email: client.email || '',
     monthly_fee: client.monthly_fee?.toString() || '',
+    rate_id: client.rate_id || '',
     notes: client.notes || '',
     birth_date: client.birth_date || '',
     gender: (client.gender || '') as string,
@@ -121,6 +122,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
         email: form.email || null,
         profile_type: form.profile_type,
         monthly_fee: monthlyFee,
+        rate_id: form.rate_id || null,
         notes: form.notes || null,
         birth_date: birthDate,
         gender: (form.gender || null) as any,
@@ -281,7 +283,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                     value={form.profile_type}
                     onValueChange={(v) => {
                       const next = v as typeof form.profile_type
-                      setForm((p) => ({ ...p, profile_type: next, monthly_fee: '' }))
+                      setForm((p) => ({ ...p, profile_type: next, monthly_fee: '', rate_id: '' }))
                     }}
                   >
                     <SelectTrigger>
@@ -365,23 +367,26 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
                   <div className="space-y-1.5">
                     <Label>Tarifa mensual</Label>
                     <Select
-                      value={form.monthly_fee}
-                      onValueChange={(v) => setForm((p) => ({ ...p, monthly_fee: v }))}
+                      value={form.rate_id}
+                      onValueChange={(v) => {
+                        const selected = FIXED_GROUP_RATES.find((r) => r.id === v)
+                        setForm((p) => ({ ...p, rate_id: v, monthly_fee: selected ? String(selected.value) : '' }))
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona tarifa..." />
                       </SelectTrigger>
                       <SelectContent>
                         {FIXED_GROUP_RATES.map((r) => (
-                          <SelectItem key={r.label} value={String(r.value)}>
+                          <SelectItem key={r.id} value={r.id}>
                             {r.label} — {formatCurrency(r.value)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {form.monthly_fee && (
+                    {form.rate_id && (
                       <p className="text-xs text-[#64748B]">
-                        {getFixedGroupRateLabel(parseFloat(form.monthly_fee))}
+                        {getFixedGroupRateLabel(parseFloat(form.monthly_fee), form.rate_id)}
                       </p>
                     )}
                   </div>

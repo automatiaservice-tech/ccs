@@ -47,6 +47,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
     email: '',
     profile_type: '' as any,
     monthly_fee: '',
+    rate_id: '',
     notes: '',
     session_ids: [] as string[],
     birth_date: '',
@@ -86,6 +87,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
         email: formData.email,
         profile_type: formData.profile_type,
         monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : undefined,
+        rate_id: formData.rate_id || undefined,
         notes: formData.notes,
         session_ids: formData.session_ids,
         birth_date: birthDate,
@@ -111,6 +113,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
       email: '',
       profile_type: '' as any,
       monthly_fee: '',
+      rate_id: '',
       notes: '',
       session_ids: [],
       birth_date: '',
@@ -131,7 +134,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
 
   // When profile_type changes, clear session selection
   const handleProfileTypeChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, profile_type: value as any, session_ids: [], monthly_fee: '' }))
+    setFormData((prev) => ({ ...prev, profile_type: value as any, session_ids: [], monthly_fee: '', rate_id: '' }))
   }
 
   // Sessions grouped by day for better display
@@ -201,15 +204,18 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
               <div className="col-span-2 space-y-1.5">
                 <Label>Tarifa mensual</Label>
                 <Select
-                  value={formData.monthly_fee}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, monthly_fee: v }))}
+                  value={formData.rate_id}
+                  onValueChange={(v) => {
+                    const selected = FIXED_GROUP_RATES.find((r) => r.id === v)
+                    setFormData((p) => ({ ...p, rate_id: v, monthly_fee: selected ? String(selected.value) : '' }))
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona tarifa..." />
                   </SelectTrigger>
                   <SelectContent>
                     {FIXED_GROUP_RATES.map((r) => (
-                      <SelectItem key={r.label} value={String(r.value)}>
+                      <SelectItem key={r.id} value={r.id}>
                         {r.label} — {formatCurrency(r.value)}
                       </SelectItem>
                     ))}

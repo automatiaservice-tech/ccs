@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   BarChart,
   Bar,
@@ -16,8 +17,8 @@ import {
   Cell,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, TrendingUp, Calendar, Star, Euro } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { Users, TrendingUp, Calendar, Star, Euro, Banknote, Building2, Clock, X } from 'lucide-react'
+import { formatCurrency, getMonthName } from '@/lib/utils'
 
 // ── Shared tooltip ───────────────────────────────────────────────────────────
 function ChartTooltip({ active, payload, label, formatter }: any) {
@@ -89,6 +90,14 @@ interface RateItem {
   count: number
 }
 
+interface PaymentClient {
+  name: string
+  amount: number
+  date: string | null
+  month: number
+  year: number
+}
+
 interface Props {
   clientStats: {
     ageDistribution: { range: string; masculino: number; femenino: number; otro: number }[]
@@ -113,11 +122,25 @@ interface Props {
     totalMRR: number
     topRate: RateItem
   }
+  paymentStats: {
+    donut: { name: string; value: number; color: string }[]
+    cashTotal: number
+    transferTotal: number
+    pendingTotal: number
+    cashClients: PaymentClient[]
+    transferClients: PaymentClient[]
+    pendingClients: PaymentClient[]
+  }
 }
 
 const RATE_COLORS = ['#93c5fd', '#3b82f6', '#7c3aed', '#1d4ed8', '#4338ca']
 
-export function StatisticsClient({ clientStats, attendanceStats, revenueStats, rateStats }: Props) {
+export function StatisticsClient({ clientStats, attendanceStats, revenueStats, rateStats, paymentStats }: Props) {
+  const [paymentModal, setPaymentModal] = useState<'efectivo' | 'transferencia' | 'pendiente' | null>(null)
+  const paymentModalClients =
+    paymentModal === 'efectivo' ? paymentStats.cashClients :
+    paymentModal === 'transferencia' ? paymentStats.transferClients :
+    paymentModal === 'pendiente' ? paymentStats.pendingClients : []
   const { ageDistribution, avgAge, avgAgeMale, avgAgeFemale, genderDist, totalActive, byGender } = clientStats
   const { weeklyAttendance, dayData, monthSessions, avgAttendees, topClientName, attendanceRate } = attendanceStats
 
@@ -457,6 +480,144 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
           </CardContent>
         </Card>
       </section>
+
+      {/* ══ F) MÉTODOS DE PAGO ═══════════════════════════════════════════════ */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-[#0F172A] border-b border-[#E2E8F0] pb-2">
+          Métodos de pago
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Donut chart */}
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle className="text-sm">Distribución de facturas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {paymentStats.donut.length === 0 ? (
+                <div className="flex items-center justify-center h-[200px] text-[#64748B] text-sm">Sin facturas</div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={paymentStats.donut}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={2}
+                        dataKey="value"
+                        labelLine={false}
+                        label={DonutLabel}
+                        onClick={(entry) => {
+                          const key = entry.name === 'Efectivo' ? 'efectivo' : entry.name === 'Transferencia' ? 'transferencia' : 'pendiente'
+                          setPaymentModal(key as any)
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {paymentStats.donut.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: any, name: any) => [`${v} facturas`, name]} contentStyle={{ border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex flex-col gap-1.5 mt-2">
+                    {paymentStats.donut.map((d) => (
+                      <button
+                        key={d.name}
+                        onClick={() => setPaymentModal(d.name === 'Efectivo' ? 'efectivo' : d.name === 'Transferencia' ? 'transferencia' : 'pendiente')}
+                        className="flex items-center justify-between text-xs hover:bg-slate-50 rounded px-1 py-0.5 transition-colors"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
+                          <span className="text-slate-600">{d.name}</span>
+                        </div>
+                        <span className="font-medium text-[#0F172A]">{d.value} facturas</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Summary cards */}
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 content-start">
+            <Card>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 shrink-0">
+                  <Banknote className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Cobrado en efectivo este mes</p>
+                  <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(paymentStats.cashTotal)}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 shrink-0">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Cobrado por transferencia este mes</p>
+                  <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(paymentStats.transferTotal)}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 shrink-0">
+                  <Clock className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Pendiente de cobro este mes</p>
+                  <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(paymentStats.pendingTotal)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ Payment method modal ═════════════════════════════════════════════ */}
+      {paymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPaymentModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
+              <h3 className="font-semibold text-[#0F172A]">
+                {paymentModal === 'efectivo' && '💵 Pagadas en efectivo — este mes'}
+                {paymentModal === 'transferencia' && '🏦 Pagadas por transferencia — este mes'}
+                {paymentModal === 'pendiente' && '⏳ Pendientes de pago — este mes'}
+              </h3>
+              <button onClick={() => setPaymentModal(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-4">
+              {paymentModalClients.length === 0 ? (
+                <p className="text-sm text-[#64748B] text-center py-8">Sin facturas este mes</p>
+              ) : (
+                <div className="space-y-2">
+                  {paymentModalClients.map((c, i) => (
+                    <div key={i} className="flex items-center justify-between rounded-lg border border-[#E2E8F0] px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-[#0F172A]">{c.name}</p>
+                        <p className="text-xs text-[#64748B] mt-0.5">
+                          {getMonthName(c.month)} {c.year}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-[#0F172A]">{formatCurrency(c.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

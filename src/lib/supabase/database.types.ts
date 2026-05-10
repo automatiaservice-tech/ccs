@@ -12,6 +12,7 @@ export interface Client {
   email: string | null
   profile_type: ProfileType
   monthly_fee: number | null
+  rate_id: string | null
   notes: string | null
   active: boolean
   age: number | null

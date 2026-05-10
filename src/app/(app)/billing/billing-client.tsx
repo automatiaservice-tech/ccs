@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Loader2, ChevronRight, Trash2, PlusCircle, AlertTriangle } from 'lucide-react'
+import { Plus, Loader2, ChevronRight, Trash2, PlusCircle, AlertTriangle, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -38,17 +38,19 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
   const [pendingStatus, setPendingStatus] = useState(searchParams.get('estado') ?? 'all')
   const [pendingClientType, setPendingClientType] = useState(searchParams.get('tipo') ?? 'all')
   const [pendingTarifa, setPendingTarifa] = useState(searchParams.get('tarifa') ?? 'all')
+  const [pendingSort, setPendingSort] = useState(searchParams.get('orden') ?? 'recientes')
 
   const [activeMonth, setActiveMonth] = useState(searchParams.get('mes') ?? 'all')
   const [activeYear, setActiveYear] = useState(searchParams.get('año') ?? 'all')
   const [activeStatus, setActiveStatus] = useState(searchParams.get('estado') ?? 'all')
   const [activeClientType, setActiveClientType] = useState(searchParams.get('tipo') ?? 'all')
   const [activeTarifa, setActiveTarifa] = useState(searchParams.get('tarifa') ?? 'all')
+  const [activeSort, setActiveSort] = useState(searchParams.get('orden') ?? 'recientes')
 
   const buildURL = (params: Record<string, string>) => {
     const sp = new URLSearchParams()
     Object.entries(params).forEach(([k, v]) => {
-      if (v && v !== 'all') sp.set(k, v)
+      if (v && v !== 'all' && !(k === 'orden' && v === 'recientes')) sp.set(k, v)
     })
     const qs = sp.toString()
     return qs ? `${pathname}?${qs}` : pathname
@@ -60,22 +62,23 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
     setActiveStatus(pendingStatus)
     setActiveClientType(pendingClientType)
     setActiveTarifa(pendingTarifa)
+    setActiveSort(pendingSort)
     setSelectedIds(new Set())
-    router.replace(buildURL({ mes: pendingMonth, año: pendingYear, estado: pendingStatus, tipo: pendingClientType, tarifa: pendingTarifa }))
+    router.replace(buildURL({ mes: pendingMonth, año: pendingYear, estado: pendingStatus, tipo: pendingClientType, tarifa: pendingTarifa, orden: pendingSort }))
   }
 
   const handleClearFilters = () => {
     setPendingMonth('all'); setPendingYear('all'); setPendingStatus('all')
-    setPendingClientType('all'); setPendingTarifa('all')
+    setPendingClientType('all'); setPendingTarifa('all'); setPendingSort('recientes')
     setActiveMonth('all'); setActiveYear('all'); setActiveStatus('all')
-    setActiveClientType('all'); setActiveTarifa('all')
+    setActiveClientType('all'); setActiveTarifa('all'); setActiveSort('recientes')
     setSelectedIds(new Set())
     router.replace(pathname)
   }
 
   const hasActiveFilters =
     activeMonth !== 'all' || activeYear !== 'all' || activeStatus !== 'all' ||
-    activeClientType !== 'all' || activeTarifa !== 'all'
+    activeClientType !== 'all' || activeTarifa !== 'all' || activeSort !== 'recientes'
 
   // ── Selection state ─────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -96,14 +99,32 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
   const [bankIban, setBankIban] = useState('')
   const [savingBank, setSavingBank] = useState(false)
 
-  const filtered = useMemo(() => initialInvoices.filter((inv) => {
-    if (activeMonth !== 'all' && inv.month !== parseInt(activeMonth)) return false
-    if (activeYear !== 'all' && inv.year !== parseInt(activeYear)) return false
-    if (activeStatus !== 'all' && inv.status !== activeStatus) return false
-    if (activeClientType !== 'all' && inv.clients?.profile_type !== activeClientType) return false
-    if (activeTarifa !== 'all' && inv.clients?.monthly_fee !== parseInt(activeTarifa)) return false
-    return true
-  }), [initialInvoices, activeMonth, activeYear, activeStatus, activeClientType, activeTarifa])
+  const filtered = useMemo(() => {
+    const list = initialInvoices.filter((inv) => {
+      if (activeMonth !== 'all' && inv.month !== parseInt(activeMonth)) return false
+      if (activeYear !== 'all' && inv.year !== parseInt(activeYear)) return false
+      if (activeStatus !== 'all' && inv.status !== activeStatus) return false
+      if (activeClientType !== 'all' && inv.clients?.profile_type !== activeClientType) return false
+      if (activeTarifa !== 'all' && inv.clients?.rate_id !== activeTarifa) return false
+      return true
+    })
+    return [...list].sort((a, b) => {
+      switch (activeSort) {
+        case 'antiguas': {
+          const diff = a.year - b.year || a.month - b.month
+          return diff !== 0 ? diff : new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        }
+        case 'nombre_asc': return (a.clients?.name ?? '').localeCompare(b.clients?.name ?? '', 'es')
+        case 'nombre_desc': return (b.clients?.name ?? '').localeCompare(a.clients?.name ?? '', 'es')
+        case 'importe_desc': return b.total_amount - a.total_amount
+        case 'importe_asc': return a.total_amount - b.total_amount
+        default: { // recientes
+          const diff = b.year - a.year || b.month - a.month
+          return diff !== 0 ? diff : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        }
+      }
+    })
+  }, [initialInvoices, activeMonth, activeYear, activeStatus, activeClientType, activeTarifa, activeSort])
 
   const filteredTotal = filtered.reduce((s: number, i: any) => s + i.total_amount, 0)
 
@@ -282,10 +303,25 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                 <SelectTrigger className="w-44 h-9 text-xs"><SelectValue placeholder="Tarifa" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas las tarifas</SelectItem>
-                  {FIXED_GROUP_RATES.map((r) => <SelectItem key={r.label} value={String(r.value)}>{r.label}</SelectItem>)}
+                  {FIXED_GROUP_RATES.map((r) => <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}
+
+            <Select value={pendingSort} onValueChange={setPendingSort}>
+              <SelectTrigger className="w-52 h-9 text-xs">
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1 shrink-0" />
+                <SelectValue placeholder="Ordenar por" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recientes">Más recientes primero</SelectItem>
+                <SelectItem value="antiguas">Más antiguas primero</SelectItem>
+                <SelectItem value="nombre_asc">Nombre A-Z</SelectItem>
+                <SelectItem value="nombre_desc">Nombre Z-A</SelectItem>
+                <SelectItem value="importe_desc">Importe mayor primero</SelectItem>
+                <SelectItem value="importe_asc">Importe menor primero</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">

@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { calculateAge } from '@/lib/utils'
+import { calculateAge, FIXED_GROUP_RATES } from '@/lib/utils'
 
 // ── Client Statistics ────────────────────────────────────────────────────────
 export async function getClientStats() {
@@ -227,30 +227,75 @@ export async function getFixedGroupRateStats() {
 
   const { data: clients, error } = await supabase
     .from('clients')
-    .select('monthly_fee')
+    .select('monthly_fee, rate_id')
     .eq('profile_type', 'fixed_group')
     .eq('active', true)
 
   if (error) throw error
 
-  const RATES = [
-    { label: 'TARIFA 1', value: 28 },
-    { label: 'TARIFA 2', value: 40 },
-    { label: 'TARIFA VIP', value: 50 },
-    { label: 'TARIFA 3', value: 60 },
-    { label: 'TARIFA 4', value: 80 },
-  ]
-
-  const distribution = RATES.map((r) => ({
+  const distribution = FIXED_GROUP_RATES.map((r, idx) => ({
     label: r.label,
     value: r.value,
-    count: (clients || []).filter((c) => c.monthly_fee === r.value).length,
+    count: (clients || []).filter((c) => {
+      if (c.rate_id) return c.rate_id === r.id
+      // Backward compat: match by value only for first rate with that value
+      const firstIdx = FIXED_GROUP_RATES.findIndex((x) => x.value === r.value)
+      return c.monthly_fee === r.value && firstIdx === idx
+    }).length,
   }))
 
   const totalMRR = (clients || []).reduce((sum, c) => sum + (c.monthly_fee ?? 0), 0)
   const topRate = distribution.reduce((a, b) => (b.count > a.count ? b : a), distribution[0])
 
   return { distribution, totalMRR, topRate }
+}
+
+// ── Payment method statistics ─────────────────────────────────────────────────
+export async function getPaymentMethodStats() {
+  const supabase = await createClient()
+  const now = new Date()
+  const month = now.getMonth() + 1
+  const year = now.getFullYear()
+
+  const { data: invoices } = await supabase
+    .from('invoices')
+    .select('id, total_amount, status, payment_method, month, year, created_at, clients(id, name)')
+
+  const all = invoices || []
+
+  const paidCash = all.filter((i) => i.status === 'paid' && i.payment_method === 'efectivo')
+  const paidTransfer = all.filter((i) => i.status === 'paid' && i.payment_method === 'transferencia')
+  const pending = all.filter((i) => i.status !== 'paid')
+
+  const thisMonth = (arr: typeof all) =>
+    arr.filter((i) => i.month === month && i.year === year)
+
+  const cashTotal = thisMonth(paidCash).reduce((s, i) => s + i.total_amount, 0)
+  const transferTotal = thisMonth(paidTransfer).reduce((s, i) => s + i.total_amount, 0)
+  const pendingTotal = thisMonth(pending).reduce((s, i) => s + i.total_amount, 0)
+
+  const toClients = (arr: typeof all) =>
+    arr.map((i) => ({
+      name: (i.clients as any)?.name ?? '—',
+      amount: i.total_amount,
+      date: i.created_at,
+      month: i.month,
+      year: i.year,
+    }))
+
+  return {
+    donut: [
+      { name: 'Efectivo', value: paidCash.length, color: '#22c55e' },
+      { name: 'Transferencia', value: paidTransfer.length, color: '#3b82f6' },
+      { name: 'Pendiente', value: pending.length, color: '#f59e0b' },
+    ].filter((d) => d.value > 0),
+    cashTotal,
+    transferTotal,
+    pendingTotal,
+    cashClients: toClients(thisMonth(paidCash)),
+    transferClients: toClients(thisMonth(paidTransfer)),
+    pendingClients: toClients(thisMonth(pending)),
+  }
 }
 
 // ── Dashboard quick stats ────────────────────────────────────────────────────

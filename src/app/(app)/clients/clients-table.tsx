@@ -209,8 +209,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
       const matchStatus =
         activeStatus === 'all' || (activeStatus === 'active' ? c.active : !c.active)
       const matchTarifa =
-        activeTarifa === 'all' ||
-        (activeType === 'fixed_group' && c.monthly_fee === parseInt(activeTarifa))
+        activeTarifa === 'all' || c.rate_id === activeTarifa
       return matchSearch && matchType && matchStatus && matchTarifa
     }),
     sortOrder
@@ -286,7 +285,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                 <SelectContent>
                   <SelectItem value="all">Todas las tarifas</SelectItem>
                   {FIXED_GROUP_RATES.map((r) => (
-                    <SelectItem key={r.label} value={String(r.value)}>{r.label}</SelectItem>
+                    <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -41,6 +41,7 @@ export async function createClientAction(formData: {
   email: string
   profile_type: ProfileType
   monthly_fee?: number
+  rate_id?: string
   notes: string
   session_ids?: string[]
   birth_date?: string
@@ -57,6 +58,7 @@ export async function createClientAction(formData: {
       email: formData.email || null,
       profile_type: formData.profile_type,
       monthly_fee: formData.monthly_fee || null,
+      rate_id: formData.rate_id || null,
       notes: formData.notes || null,
       active: true,
       birth_date: formData.birth_date || null,
