@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   BarChart,
   Bar,
@@ -590,7 +591,7 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
       </section>
 
       {/* ══ Payment method modal ═════════════════════════════════════════════ */}
-      {paymentModal && (
+      {paymentModal && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setPaymentModal(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
@@ -623,7 +624,8 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>
