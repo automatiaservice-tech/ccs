@@ -523,20 +523,27 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                       <Tooltip formatter={(v: any, name: any) => [`${v} facturas`, name]} contentStyle={{ border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12 }} />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="flex flex-col gap-1.5 mt-2">
-                    {paymentStats.donut.map((d) => (
-                      <button
-                        key={d.name}
-                        onClick={() => setPaymentModal(d.name === 'Efectivo' ? 'efectivo' : d.name === 'Transferencia' ? 'transferencia' : 'pendiente')}
-                        className="flex items-center justify-between text-xs hover:bg-slate-50 rounded px-1 py-0.5 transition-colors"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <div className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
-                          <span className="text-slate-600">{d.name}</span>
-                        </div>
-                        <span className="font-medium text-[#0F172A]">{d.value} facturas</span>
-                      </button>
-                    ))}
+                  <div className="flex flex-col gap-2 mt-3">
+                    {paymentStats.donut.map((d) => {
+                      const key = d.name === 'Efectivo' ? 'efectivo' : d.name === 'Transferencia' ? 'transferencia' : 'pendiente'
+                      return (
+                        <button
+                          key={d.name}
+                          type="button"
+                          onClick={() => setPaymentModal(key as any)}
+                          className="flex items-center justify-between rounded-lg border border-[#E2E8F0] px-3 py-2 hover:bg-slate-50 transition-colors w-full text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="h-3 w-3 rounded-full shrink-0" style={{ background: d.color }} />
+                            <span className="text-sm text-slate-700">{d.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-[#0F172A]">{d.value} facturas</span>
+                            <span className="text-xs text-blue-500 underline">Ver lista</span>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 </>
               )}
@@ -584,7 +591,7 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
 
       {/* ══ Payment method modal ═════════════════════════════════════════════ */}
       {paymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPaymentModal(null)}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setPaymentModal(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
               <h3 className="font-semibold text-[#0F172A]">
