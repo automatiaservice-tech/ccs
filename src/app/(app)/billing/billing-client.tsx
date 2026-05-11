@@ -288,25 +288,22 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
               </SelectContent>
             </Select>
 
-            <Select value={pendingClientType} onValueChange={(v) => { setPendingClientType(v); if (v !== 'fixed_group') setPendingTarifa('all') }}>
+            <Select value={pendingClientType} onValueChange={setPendingClientType}>
               <SelectTrigger className="w-48 h-9 text-xs"><SelectValue placeholder="Tipo cliente" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los tipos</SelectItem>
                 <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
-
                 <SelectItem value="individual">Personal</SelectItem>
               </SelectContent>
             </Select>
 
-            {pendingClientType === 'fixed_group' && (
-              <Select value={pendingTarifa} onValueChange={setPendingTarifa}>
-                <SelectTrigger className="w-44 h-9 text-xs"><SelectValue placeholder="Tarifa" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las tarifas</SelectItem>
-                  {FIXED_GROUP_RATES.map((r) => <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
+            <Select value={pendingTarifa} onValueChange={setPendingTarifa}>
+              <SelectTrigger className="w-44 h-9 text-xs"><SelectValue placeholder="Tarifa" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las tarifas</SelectItem>
+                {FIXED_GROUP_RATES.map((r) => <SelectItem key={r.id} value={r.id}>{r.label} ({r.value}€)</SelectItem>)}
+              </SelectContent>
+            </Select>
 
             <Select value={pendingSort} onValueChange={setPendingSort}>
               <SelectTrigger className="w-52 h-9 text-xs">
