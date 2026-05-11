@@ -27,7 +27,7 @@ import {
   getStatusBadgeColor,
   getStatusLabel,
 } from '@/lib/utils'
-import { updateInvoiceStatus, updateClientBankAccount, updateInvoiceLines } from '@/lib/actions/billing'
+import { updateInvoiceStatus, updateClientBankAccount, updateInvoiceLines, updateInvoiceAdjustment } from '@/lib/actions/billing'
 
 // ── Line categorisation based on description prefix ───────────────────────
 function lineType(description: string): 'fixed' | 'individual' | 'variable' | 'other' {
@@ -113,8 +113,20 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
   const [editLines, setEditLines] = useState<any[]>(invoice.invoice_lines || [])
   const [saving, setSaving] = useState(false)
 
+  // ── Adjustment state ─────────────────────────────────────────────────────
+  const [editingAdjustment, setEditingAdjustment] = useState(false)
+  const [adjustmentInput, setAdjustmentInput] = useState(String(invoice.adjustment_amount ?? 0))
+  const [adjustmentReasonInput, setAdjustmentReasonInput] = useState(invoice.adjustment_reason ?? '')
+  const [savingAdjustment, setSavingAdjustment] = useState(false)
+
   const canEdit = invoice.status === 'draft' || invoice.status === 'sent'
   const editTotal = editLines.reduce((s: number, l: any) => s + l.amount, 0)
+
+  // Derived totals
+  const linesTotal = (invoice.invoice_lines || []).reduce((s: number, l: any) => s + l.amount, 0)
+  const adjAmount = invoice.adjustment_amount || 0
+  const displayLinesTotal = editMode ? editTotal : linesTotal
+  const displayFinalTotal = displayLinesTotal + adjAmount
 
   const handleDeleteLine = (lineId: string) => {
     setEditLines((prev) => prev.filter((l) => l.id !== lineId))
@@ -123,7 +135,7 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
   const handleSaveEdit = async () => {
     setSaving(true)
     try {
-      await updateInvoiceLines(invoice.id, editLines.map((l) => l.id), editTotal)
+      await updateInvoiceLines(invoice.id, editLines.map((l) => l.id))
       toast.success('Factura actualizada')
       router.refresh()
       setEditMode(false)
@@ -132,6 +144,35 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSaveAdjustment = async () => {
+    const amount = parseFloat(adjustmentInput)
+    if (isNaN(amount)) {
+      toast.error('Importe de ajuste no válido')
+      return
+    }
+    if (amount !== 0 && !adjustmentReasonInput.trim()) {
+      toast.error('El motivo del ajuste es obligatorio')
+      return
+    }
+    setSavingAdjustment(true)
+    try {
+      await updateInvoiceAdjustment(invoice.id, amount, adjustmentReasonInput.trim())
+      toast.success('Ajuste guardado')
+      router.refresh()
+      setEditingAdjustment(false)
+    } catch {
+      toast.error('Error al guardar el ajuste')
+    } finally {
+      setSavingAdjustment(false)
+    }
+  }
+
+  const handleCancelAdjustment = () => {
+    setAdjustmentInput(String(invoice.adjustment_amount ?? 0))
+    setAdjustmentReasonInput(invoice.adjustment_reason ?? '')
+    setEditingAdjustment(false)
   }
 
   const handleCancelEdit = () => {
@@ -196,8 +237,6 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
 
   const hasMultipleSections =
     [fixedLines, individualLines, variableLines, otherLines].filter((g) => g.length > 0).length > 1
-
-  const displayTotal = editMode ? editTotal : invoice.total_amount
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -441,25 +480,130 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
           {/* Total */}
           <div className="flex justify-end">
             <div className="text-right space-y-2">
-              <div className="flex items-center gap-8 justify-between">
-                <span className="text-[#64748B] text-sm">Base imponible</span>
-                <span className="text-slate-700 text-sm">{formatCurrency(displayTotal)}</span>
-              </div>
-              <div className="flex items-center gap-8 justify-between">
-                <span className="text-[#64748B] text-sm">IVA (0%)</span>
-                <span className="text-slate-700 text-sm">{formatCurrency(0)}</span>
-              </div>
-              <Separator className="my-2" />
-              <div className="flex items-center gap-8 justify-between">
-                <span className="text-lg font-bold text-[#0F172A]">TOTAL</span>
-                <span className="text-xl font-bold text-[#2563EB]">
-                  {formatCurrency(displayTotal)}
-                </span>
-              </div>
+              {adjAmount !== 0 ? (
+                <>
+                  <div className="flex items-center gap-8 justify-between">
+                    <span className="text-[#64748B] text-sm">Subtotal original</span>
+                    <span className="text-slate-700 text-sm">{formatCurrency(displayLinesTotal)}</span>
+                  </div>
+                  <div className="flex items-center gap-8 justify-between">
+                    <span className="text-[#64748B] text-sm">
+                      Ajuste{invoice.adjustment_reason ? ` (${invoice.adjustment_reason})` : ''}
+                    </span>
+                    <span className={`text-sm font-medium ${adjAmount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {adjAmount > 0 ? '+' : ''}{formatCurrency(adjAmount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-8 justify-between">
+                    <span className="text-[#64748B] text-sm">IVA (0%)</span>
+                    <span className="text-slate-700 text-sm">{formatCurrency(0)}</span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex items-center gap-8 justify-between">
+                    <span className="text-lg font-bold text-[#0F172A]">TOTAL A PAGAR</span>
+                    <span className="text-xl font-bold text-[#2563EB]">
+                      {formatCurrency(displayFinalTotal)}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-8 justify-between">
+                    <span className="text-[#64748B] text-sm">Base imponible</span>
+                    <span className="text-slate-700 text-sm">{formatCurrency(displayLinesTotal)}</span>
+                  </div>
+                  <div className="flex items-center gap-8 justify-between">
+                    <span className="text-[#64748B] text-sm">IVA (0%)</span>
+                    <span className="text-slate-700 text-sm">{formatCurrency(0)}</span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex items-center gap-8 justify-between">
+                    <span className="text-lg font-bold text-[#0F172A]">TOTAL</span>
+                    <span className="text-xl font-bold text-[#2563EB]">
+                      {formatCurrency(displayFinalTotal)}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Adjustment section ── */}
+      {!editMode && (
+        <div className="no-print">
+          {editingAdjustment ? (
+            <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 space-y-3">
+              <p className="text-sm font-semibold text-[#0F172A]">Ajuste / Descuento</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Importe del ajuste</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={adjustmentInput}
+                    onChange={(e) => setAdjustmentInput(e.target.value)}
+                    placeholder="-10.00 para descuento, +5.00 para cargo"
+                  />
+                  <p className="text-xs text-[#64748B]">Negativo para descuento, positivo para cargo extra</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>
+                    Motivo{parseFloat(adjustmentInput) !== 0 && <span className="text-red-500 ml-0.5">*</span>}
+                  </Label>
+                  <Input
+                    value={adjustmentReasonInput}
+                    onChange={(e) => setAdjustmentReasonInput(e.target.value)}
+                    placeholder="Ej: Descuento por pago anticipado"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 justify-end">
+                <Button variant="outline" onClick={handleCancelAdjustment} disabled={savingAdjustment}>
+                  <X className="h-4 w-4" />
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveAdjustment} disabled={savingAdjustment}>
+                  {savingAdjustment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Guardar ajuste
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 flex-wrap">
+              {adjAmount !== 0 ? (
+                <>
+                  <span className="text-sm text-slate-600">
+                    ⚠️ Ajuste aplicado:{' '}
+                    <span className={`font-medium ${adjAmount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {adjAmount > 0 ? '+' : ''}{formatCurrency(adjAmount)}
+                    </span>
+                    {invoice.adjustment_reason && (
+                      <span className="text-slate-400"> — {invoice.adjustment_reason}</span>
+                    )}
+                  </span>
+                  {invoice.status !== 'paid' && (
+                    <button
+                      onClick={() => setEditingAdjustment(true)}
+                      className="text-xs text-blue-500 hover:text-blue-600 underline underline-offset-2"
+                    >
+                      Modificar
+                    </button>
+                  )}
+                </>
+              ) : (
+                invoice.status !== 'paid' && (
+                  <Button variant="outline" size="sm" onClick={() => setEditingAdjustment(true)}>
+                    <Pencil className="h-4 w-4" />
+                    Añadir ajuste / descuento
+                  </Button>
+                )
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <style>{`
         @media print {

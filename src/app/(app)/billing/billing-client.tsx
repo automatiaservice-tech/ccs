@@ -388,7 +388,10 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1.5 shrink-0">
-                          <span className="text-sm font-bold text-[#0F172A]">{formatCurrency(inv.total_amount)}</span>
+                          <span className="text-sm font-bold text-[#0F172A]">
+                            {inv.adjustment_amount ? <span title="Factura con ajuste aplicado">⚠️ </span> : null}
+                            {formatCurrency(inv.total_amount)}
+                          </span>
                           <div className="flex items-center gap-1">
                             {inv.status === 'paid' && inv.payment_method === 'efectivo' && <span className="text-xs">💵</span>}
                             {inv.status === 'paid' && inv.payment_method === 'transferencia' && <span className="text-xs">🏦</span>}
@@ -487,6 +490,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                           </div>
                         </td>
                         <td className="px-4 py-3.5 text-right text-sm font-semibold text-[#0F172A]">
+                          {inv.adjustment_amount ? <span title="Factura con ajuste aplicado">⚠️ </span> : null}
                           {formatCurrency(inv.total_amount)}
                         </td>
                         <td className="px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>

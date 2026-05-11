@@ -467,8 +467,7 @@ export async function deleteManyInvoices(ids: string[]) {
 
 export async function updateInvoiceLines(
   invoiceId: string,
-  lineIdsToKeep: string[],
-  newTotal: number
+  lineIdsToKeep: string[]
 ) {
   const supabase = await createClient()
 
@@ -489,11 +488,55 @@ export async function updateInvoiceLines(
     }
   }
 
+  // Recompute total from remaining lines + existing adjustment
+  const { data: remaining } = await supabase
+    .from('invoice_lines')
+    .select('amount')
+    .eq('invoice_id', invoiceId)
+  const linesTotal = (remaining || []).reduce((s, l) => s + (l.amount as number), 0)
+
+  const { data: inv } = await supabase
+    .from('invoices')
+    .select('adjustment_amount')
+    .eq('id', invoiceId)
+    .single()
+  const adjAmount = (inv?.adjustment_amount as number) || 0
+  const newTotal = Math.round((linesTotal + adjAmount) * 100) / 100
+
   const { error } = await supabase
     .from('invoices')
     .update({ total_amount: newTotal })
     .eq('id', invoiceId)
   if (error) throw new Error(`Error updating invoice: ${error.message}`)
+
+  revalidatePath('/billing')
+  revalidatePath(`/billing/${invoiceId}`)
+}
+
+export async function updateInvoiceAdjustment(
+  invoiceId: string,
+  adjustmentAmount: number,
+  adjustmentReason: string
+) {
+  const supabase = await createClient()
+
+  // Sum current lines to compute new total
+  const { data: lines } = await supabase
+    .from('invoice_lines')
+    .select('amount')
+    .eq('invoice_id', invoiceId)
+  const linesTotal = (lines || []).reduce((s, l) => s + (l.amount as number), 0)
+  const newTotal = Math.round((linesTotal + adjustmentAmount) * 100) / 100
+
+  const { error } = await supabase
+    .from('invoices')
+    .update({
+      adjustment_amount: adjustmentAmount,
+      adjustment_reason: adjustmentReason || null,
+      total_amount: newTotal,
+    })
+    .eq('id', invoiceId)
+  if (error) throw new Error(`Error updating invoice adjustment: ${error.message}`)
 
   revalidatePath('/billing')
   revalidatePath(`/billing/${invoiceId}`)
