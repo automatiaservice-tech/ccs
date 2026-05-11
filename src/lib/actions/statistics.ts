@@ -276,6 +276,7 @@ export async function getPaymentMethodStats() {
 
   const toClients = (arr: typeof all) =>
     arr.map((i) => ({
+      id: i.id,
       name: (i.clients as any)?.name ?? '—',
       amount: i.total_amount,
       date: i.created_at,

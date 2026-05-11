@@ -18,8 +18,10 @@ import {
   Cell,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, TrendingUp, Calendar, Star, Euro, Banknote, Building2, Clock, X } from 'lucide-react'
+import { Users, TrendingUp, Calendar, Star, Euro, Banknote, Building2, Clock, X, Loader2 } from 'lucide-react'
 import { formatCurrency, getMonthName } from '@/lib/utils'
+import { toast } from 'sonner'
+import { updateInvoiceStatus } from '@/lib/actions/billing'
 
 // ── Shared tooltip ───────────────────────────────────────────────────────────
 function ChartTooltip({ active, payload, label, formatter }: any) {
@@ -92,11 +94,22 @@ interface RateItem {
 }
 
 interface PaymentClient {
+  id: string
   name: string
   amount: number
   date: string | null
   month: number
   year: number
+}
+
+interface PaymentStats {
+  donut: { name: string; value: number; color: string }[]
+  cashTotal: number
+  transferTotal: number
+  pendingTotal: number
+  cashClients: PaymentClient[]
+  transferClients: PaymentClient[]
+  pendingClients: PaymentClient[]
 }
 
 interface Props {
@@ -123,29 +136,88 @@ interface Props {
     totalMRR: number
     topRate: RateItem
   }
-  paymentStats: {
-    donut: { name: string; value: number; color: string }[]
-    cashTotal: number
-    transferTotal: number
-    pendingTotal: number
-    cashClients: PaymentClient[]
-    transferClients: PaymentClient[]
-    pendingClients: PaymentClient[]
-  }
+  paymentStats: PaymentStats
 }
 
 const RATE_COLORS = ['#93c5fd', '#3b82f6', '#7c3aed', '#1d4ed8', '#4338ca']
 
 export function StatisticsClient({ clientStats, attendanceStats, revenueStats, rateStats, paymentStats }: Props) {
   const [paymentModal, setPaymentModal] = useState<'efectivo' | 'transferencia' | 'pendiente' | null>(null)
+
+  // ── Local mutable payment state (updates without page reload) ────────────
+  const [localStats, setLocalStats] = useState<PaymentStats>(paymentStats)
+  const [confirmingPayment, setConfirmingPayment] = useState<{ id: string; method: 'efectivo' | 'transferencia' } | null>(null)
+  const [processingPayment, setProcessingPayment] = useState(false)
+
   const paymentModalClients =
-    paymentModal === 'efectivo' ? paymentStats.cashClients :
-    paymentModal === 'transferencia' ? paymentStats.transferClients :
-    paymentModal === 'pendiente' ? paymentStats.pendingClients : []
+    paymentModal === 'efectivo' ? localStats.cashClients :
+    paymentModal === 'transferencia' ? localStats.transferClients :
+    paymentModal === 'pendiente' ? localStats.pendingClients : []
+
   const { ageDistribution, avgAge, avgAgeMale, avgAgeFemale, genderDist, totalActive, byGender } = clientStats
   const { weeklyAttendance, dayData, monthSessions, avgAttendees, topClientName, attendanceRate } = attendanceStats
 
   const pct = (n: number) => (totalActive > 0 ? Math.round((n / totalActive) * 100) : 0)
+
+  const handleConfirmPayment = async (client: PaymentClient) => {
+    if (!confirmingPayment) return
+    setProcessingPayment(true)
+    try {
+      await updateInvoiceStatus(client.id, 'paid', confirmingPayment.method)
+
+      const method = confirmingPayment.method
+      setLocalStats((prev) => {
+        const newPendingClients = prev.pendingClients.filter((c) => c.id !== client.id)
+        const newCashClients = method === 'efectivo' ? [...prev.cashClients, client] : prev.cashClients
+        const newTransferClients = method === 'transferencia' ? [...prev.transferClients, client] : prev.transferClients
+        const newCashTotal = method === 'efectivo' ? prev.cashTotal + client.amount : prev.cashTotal
+        const newTransferTotal = method === 'transferencia' ? prev.transferTotal + client.amount : prev.transferTotal
+        const newPendingTotal = Math.max(0, prev.pendingTotal - client.amount)
+
+        const hasEfectivo = prev.donut.some((d) => d.name === 'Efectivo')
+        const hasTransferencia = prev.donut.some((d) => d.name === 'Transferencia')
+
+        let newDonut = prev.donut
+          .map((d) => {
+            if (d.name === 'Pendiente') return { ...d, value: d.value - 1 }
+            if (d.name === 'Efectivo' && method === 'efectivo') return { ...d, value: d.value + 1 }
+            if (d.name === 'Transferencia' && method === 'transferencia') return { ...d, value: d.value + 1 }
+            return d
+          })
+          .filter((d) => d.value > 0)
+
+        if (method === 'efectivo' && !hasEfectivo) {
+          newDonut.push({ name: 'Efectivo', value: 1, color: '#22c55e' })
+        }
+        if (method === 'transferencia' && !hasTransferencia) {
+          newDonut.push({ name: 'Transferencia', value: 1, color: '#3b82f6' })
+        }
+
+        return {
+          ...prev,
+          pendingClients: newPendingClients,
+          cashClients: newCashClients,
+          transferClients: newTransferClients,
+          cashTotal: newCashTotal,
+          transferTotal: newTransferTotal,
+          pendingTotal: newPendingTotal,
+          donut: newDonut,
+        }
+      })
+
+      toast.success('Pago registrado correctamente')
+      setConfirmingPayment(null)
+    } catch {
+      toast.error('Error al registrar el pago')
+    } finally {
+      setProcessingPayment(false)
+    }
+  }
+
+  const handleCloseModal = () => {
+    setPaymentModal(null)
+    setConfirmingPayment(null)
+  }
 
   return (
     <div className="space-y-10">
@@ -495,14 +567,14 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
               <CardTitle className="text-sm">Distribución de facturas</CardTitle>
             </CardHeader>
             <CardContent>
-              {paymentStats.donut.length === 0 ? (
+              {localStats.donut.length === 0 ? (
                 <div className="flex items-center justify-center h-[200px] text-[#64748B] text-sm">Sin facturas</div>
               ) : (
                 <>
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
                       <Pie
-                        data={paymentStats.donut}
+                        data={localStats.donut}
                         cx="50%"
                         cy="50%"
                         innerRadius={55}
@@ -514,10 +586,11 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                         onClick={(entry) => {
                           const key = entry.name === 'Efectivo' ? 'efectivo' : entry.name === 'Transferencia' ? 'transferencia' : 'pendiente'
                           setPaymentModal(key as any)
+                          setConfirmingPayment(null)
                         }}
                         style={{ cursor: 'pointer' }}
                       >
-                        {paymentStats.donut.map((entry, i) => (
+                        {localStats.donut.map((entry, i) => (
                           <Cell key={i} fill={entry.color} />
                         ))}
                       </Pie>
@@ -525,13 +598,13 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="flex flex-col gap-2 mt-3">
-                    {paymentStats.donut.map((d) => {
+                    {localStats.donut.map((d) => {
                       const key = d.name === 'Efectivo' ? 'efectivo' : d.name === 'Transferencia' ? 'transferencia' : 'pendiente'
                       return (
                         <button
                           key={d.name}
                           type="button"
-                          onClick={() => setPaymentModal(key as any)}
+                          onClick={() => { setPaymentModal(key as any); setConfirmingPayment(null) }}
                           className="flex items-center justify-between rounded-lg border border-[#E2E8F0] px-3 py-2 hover:bg-slate-50 transition-colors w-full text-left"
                         >
                           <div className="flex items-center gap-2">
@@ -560,7 +633,7 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                 </div>
                 <div>
                   <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Cobrado en efectivo este mes</p>
-                  <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(paymentStats.cashTotal)}</p>
+                  <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(localStats.cashTotal)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -571,7 +644,7 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                 </div>
                 <div>
                   <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Cobrado por transferencia este mes</p>
-                  <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(paymentStats.transferTotal)}</p>
+                  <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(localStats.transferTotal)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -582,7 +655,7 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                 </div>
                 <div>
                   <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Pendiente de cobro este mes</p>
-                  <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(paymentStats.pendingTotal)}</p>
+                  <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(localStats.pendingTotal)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -592,15 +665,21 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
 
       {/* ══ Payment method modal ═════════════════════════════════════════════ */}
       {paymentModal && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setPaymentModal(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4"
+          onClick={handleCloseModal}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
               <h3 className="font-semibold text-[#0F172A]">
                 {paymentModal === 'efectivo' && '💵 Pagadas en efectivo — este mes'}
                 {paymentModal === 'transferencia' && '🏦 Pagadas por transferencia — este mes'}
                 {paymentModal === 'pendiente' && '⏳ Pendientes de pago — este mes'}
               </h3>
-              <button onClick={() => setPaymentModal(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -609,15 +688,70 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                 <p className="text-sm text-[#64748B] text-center py-8">Sin facturas este mes</p>
               ) : (
                 <div className="space-y-2">
-                  {paymentModalClients.map((c, i) => (
-                    <div key={i} className="flex items-center justify-between rounded-lg border border-[#E2E8F0] px-4 py-3">
-                      <div>
-                        <p className="text-sm font-medium text-[#0F172A]">{c.name}</p>
-                        <p className="text-xs text-[#64748B] mt-0.5">
-                          {getMonthName(c.month)} {c.year}
-                        </p>
-                      </div>
-                      <span className="text-sm font-semibold text-[#0F172A]">{formatCurrency(c.amount)}</span>
+                  {paymentModalClients.map((c) => (
+                    <div key={c.id} className="rounded-lg border border-[#E2E8F0] px-4 py-3">
+                      {/* ── Inline confirmation ── */}
+                      {paymentModal === 'pendiente' && confirmingPayment?.id === c.id ? (
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-[#0F172A]">{c.name}</p>
+                            <span className="text-sm font-semibold text-[#0F172A]">{formatCurrency(c.amount)}</span>
+                          </div>
+                          <p className="text-xs text-slate-600">
+                            ¿Confirmar pago de{' '}
+                            <span className="font-semibold">{formatCurrency(c.amount)}</span>{' '}
+                            por{' '}
+                            <span className="font-semibold">
+                              {confirmingPayment.method === 'efectivo' ? '💵 efectivo' : '🏦 transferencia'}
+                            </span>
+                            ?
+                          </p>
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              onClick={() => setConfirmingPayment(null)}
+                              disabled={processingPayment}
+                              className="px-3 py-1.5 text-xs border border-[#E2E8F0] rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={() => handleConfirmPayment(c)}
+                              disabled={processingPayment}
+                              className="px-3 py-1.5 text-xs bg-[#0F172A] text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                            >
+                              {processingPayment && <Loader2 className="h-3 w-3 animate-spin" />}
+                              Confirmar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* ── Normal row ── */
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-[#0F172A] truncate">{c.name}</p>
+                            <p className="text-xs text-[#64748B] mt-0.5">{getMonthName(c.month)} {c.year}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-sm font-semibold text-[#0F172A]">{formatCurrency(c.amount)}</span>
+                            {paymentModal === 'pendiente' && (
+                              <>
+                                <button
+                                  onClick={() => setConfirmingPayment({ id: c.id, method: 'efectivo' })}
+                                  className="px-2.5 py-1.5 text-xs bg-green-50 border border-green-200 text-green-700 rounded-lg hover:bg-green-100 transition-colors font-medium"
+                                >
+                                  💵 Efectivo
+                                </button>
+                                <button
+                                  onClick={() => setConfirmingPayment({ id: c.id, method: 'transferencia' })}
+                                  className="px-2.5 py-1.5 text-xs bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium"
+                                >
+                                  🏦 Transf.
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
