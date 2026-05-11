@@ -90,6 +90,8 @@ export interface Invoice {
   pdf_url: string | null
   payment_method: 'efectivo' | 'transferencia' | null
   payment_reference: string | null
+  adjustment_amount: number | null
+  adjustment_reason: string | null
   created_at: string
   invoice_number?: string
 }

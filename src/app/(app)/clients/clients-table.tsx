@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { Plus, Search, ChevronRight, ArrowUpDown, MoreVertical, Loader2, Trash2, UserCheck, UserX, Eye } from 'lucide-react'
+import { Plus, Search, ArrowUpDown, MoreVertical, Loader2, Trash2, UserCheck, UserX, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,7 +36,6 @@ function sortClients(clients: Client[], order: SortOrder): Client[] {
   })
 }
 
-// ── Color coding by profile type ──────────────────────────────────────────
 function getCardStyle(profile_type: string) {
   switch (profile_type) {
     case 'individual':
@@ -50,38 +49,28 @@ function getCardStyle(profile_type: string) {
 
 function getAvatarStyle(profile_type: string) {
   switch (profile_type) {
-    case 'individual':
-      return 'bg-orange-100 text-orange-700'
-    case 'fixed_group':
-      return 'bg-blue-100 text-blue-700'
-    default:
-      return 'bg-gray-100 text-gray-600'
+    case 'individual': return 'bg-orange-100 text-orange-700'
+    case 'fixed_group': return 'bg-blue-100 text-blue-700'
+    default: return 'bg-gray-100 text-gray-600'
   }
 }
 
 function getTypeBadgeStyle(profile_type: string) {
   switch (profile_type) {
-    case 'individual':
-      return 'bg-orange-100 text-orange-700 border-orange-300'
-    case 'fixed_group':
-      return 'bg-blue-100 text-blue-700 border-blue-300'
-    default:
-      return 'bg-gray-100 text-gray-600 border-gray-300'
+    case 'individual': return 'bg-orange-100 text-orange-700 border-orange-300'
+    case 'fixed_group': return 'bg-blue-100 text-blue-700 border-blue-300'
+    default: return 'bg-gray-100 text-gray-600 border-gray-300'
   }
 }
 
 function getTableRowStyle(profile_type: string) {
   switch (profile_type) {
-    case 'individual':
-      return 'border-l-4 border-l-orange-400 hover:bg-orange-50'
-    case 'fixed_group':
-      return 'border-l-4 border-l-blue-400 hover:bg-blue-50'
-    default:
-      return 'border-l-4 border-l-gray-300 hover:bg-gray-50'
+    case 'individual': return 'border-l-4 border-l-orange-400 hover:bg-orange-50'
+    case 'fixed_group': return 'border-l-4 border-l-blue-400 hover:bg-blue-50'
+    default: return 'border-l-4 border-l-gray-300 hover:bg-gray-50'
   }
 }
 
-// ── Client actions dropdown ────────────────────────────────────────────────
 interface ClientMenuProps {
   client: Client
   onDelete: (client: Client) => void
@@ -96,9 +85,7 @@ function ClientMenu({ client, onDelete, onToggleActive }: ClientMenuProps) {
   useEffect(() => {
     if (!open) return
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -106,12 +93,7 @@ function ClientMenu({ client, onDelete, onToggleActive }: ClientMenuProps) {
 
   return (
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        onClick={() => setOpen((v) => !v)}
-      >
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setOpen((v) => !v)}>
         <MoreVertical className="h-4 w-4" />
       </Button>
       {open && (
@@ -152,67 +134,82 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
   const router = useRouter()
 
   const [clients, setClients] = useState(initialClients)
-  const [search, setSearch] = useState(searchParams.get('q') ?? '')
-  const [sortOrder, setSortOrder] = useState<SortOrder>((searchParams.get('orden') as SortOrder) ?? 'alpha')
   const [showModal, setShowModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  // ── Staged filters (initialized from URL) ──────────────────────────────
-  const [pendingType, setPendingType] = useState(searchParams.get('tipo') ?? 'all')
-  const [pendingTarifa, setPendingTarifa] = useState(searchParams.get('tarifa') ?? 'all')
-  const [pendingStatus, setPendingStatus] = useState(searchParams.get('estado') ?? 'all')
-  const [activeType, setActiveType] = useState(searchParams.get('tipo') ?? 'all')
-  const [activeTarifa, setActiveTarifa] = useState(searchParams.get('tarifa') ?? 'all')
-  const [activeStatus, setActiveStatus] = useState(searchParams.get('estado') ?? 'all')
+  // ── All filter state derived from URL — single source of truth ──────────
+  const typeFilter = searchParams.get('tipo') ?? 'all'
+  const tarifaFilter = searchParams.get('tarifa') ?? 'all'
+  const statusFilter = searchParams.get('estado') ?? 'all'
+  const sortFilter = (searchParams.get('orden') as SortOrder) ?? 'alpha'
+  const searchQuery = searchParams.get('q') ?? ''
 
+  // Local state for search input (responsive while typing)
+  const [searchInput, setSearchInput] = useState(searchQuery)
+
+  // Keep searchInput in sync with URL on back/forward navigation
+  useEffect(() => {
+    setSearchInput(searchQuery)
+  }, [searchQuery])
+
+  // ── URL builder ──────────────────────────────────────────────────────────
   const buildURL = (params: Record<string, string>) => {
     const sp = new URLSearchParams()
     Object.entries(params).forEach(([k, v]) => {
-      if (v && v !== 'all') sp.set(k, v)
+      if (v && v !== 'all' && !(k === 'orden' && v === 'alpha') && !(k === 'q' && !v.trim())) {
+        sp.set(k, v)
+      }
     })
     const qs = sp.toString()
     return qs ? `${pathname}?${qs}` : pathname
   }
 
-  const handleApplyFilters = () => {
-    setActiveType(pendingType)
-    setActiveTarifa(pendingTarifa)
-    setActiveStatus(pendingStatus)
-    router.replace(buildURL({ tipo: pendingType, tarifa: pendingTarifa, estado: pendingStatus, orden: sortOrder, q: search }))
+  // ── Update a single filter, always preserving all others ────────────────
+  const setFilter = (key: string, value: string) => {
+    const updates: Record<string, string> = {
+      tipo: typeFilter,
+      tarifa: tarifaFilter,
+      estado: statusFilter,
+      orden: sortFilter,
+      q: searchInput,
+      [key]: value,
+    }
+    // Clear tarifa when tipo changes away from fixed_group
+    if (key === 'tipo' && value !== 'fixed_group') {
+      updates.tarifa = 'all'
+    }
+    router.replace(buildURL(updates))
+  }
+
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value)
+    router.replace(buildURL({ tipo: typeFilter, tarifa: tarifaFilter, estado: statusFilter, orden: sortFilter, q: value }))
   }
 
   const handleClearFilters = () => {
-    setPendingType('all')
-    setPendingTarifa('all')
-    setPendingStatus('all')
-    setActiveType('all')
-    setActiveTarifa('all')
-    setActiveStatus('all')
+    setSearchInput('')
     router.replace(pathname)
   }
 
-  const handleSortChange = (v: SortOrder) => {
-    setSortOrder(v)
-    router.replace(buildURL({ tipo: activeType, tarifa: activeTarifa, estado: activeStatus, orden: v, q: search }))
-  }
+  const hasActiveFilters =
+    typeFilter !== 'all' || tarifaFilter !== 'all' || statusFilter !== 'all' ||
+    sortFilter !== 'alpha' || !!searchQuery
 
-  const hasActiveFilters = activeType !== 'all' || activeTarifa !== 'all' || activeStatus !== 'all'
-
+  // ── Filtered + sorted list ───────────────────────────────────────────────
   const filtered = sortClients(
     clients.filter((c) => {
+      const q = searchInput.toLowerCase()
       const matchSearch =
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        (c.phone || '').includes(search) ||
-        (c.email || '').toLowerCase().includes(search.toLowerCase())
-      const matchType = activeType === 'all' || c.profile_type === activeType
-      const matchStatus =
-        activeStatus === 'all' || (activeStatus === 'active' ? c.active : !c.active)
-      const matchTarifa =
-        activeTarifa === 'all' || c.rate_id === activeTarifa
+        c.name.toLowerCase().includes(q) ||
+        (c.phone || '').includes(searchInput) ||
+        (c.email || '').toLowerCase().includes(q)
+      const matchType = typeFilter === 'all' || c.profile_type === typeFilter
+      const matchStatus = statusFilter === 'all' || (statusFilter === 'active' ? c.active : !c.active)
+      const matchTarifa = tarifaFilter === 'all' || c.rate_id === tarifaFilter
       return matchSearch && matchType && matchStatus && matchTarifa
     }),
-    sortOrder
+    sortFilter
   )
 
   const handleDelete = async () => {
@@ -251,8 +248,8 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Buscar cliente..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-9 h-10"
             />
           </div>
@@ -265,20 +262,19 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
         {/* ── Filter panel ── */}
         <div className="rounded-xl border border-[#E2E8F0] bg-slate-50/60 p-3 space-y-3">
           <div className="flex gap-2 flex-wrap">
-            <Select value={pendingType} onValueChange={setPendingType}>
+            <Select value={typeFilter} onValueChange={(v) => setFilter('tipo', v)}>
               <SelectTrigger className="w-48 h-9 text-xs">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los tipos</SelectItem>
                 <SelectItem value="fixed_group">Grupo Fijo</SelectItem>
-
                 <SelectItem value="individual">Personal</SelectItem>
               </SelectContent>
             </Select>
 
-            {pendingType === 'fixed_group' && (
-              <Select value={pendingTarifa} onValueChange={setPendingTarifa}>
+            {typeFilter === 'fixed_group' && (
+              <Select value={tarifaFilter} onValueChange={(v) => setFilter('tarifa', v)}>
                 <SelectTrigger className="w-44 h-9 text-xs">
                   <SelectValue placeholder="Tarifa" />
                 </SelectTrigger>
@@ -291,7 +287,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
               </Select>
             )}
 
-            <Select value={pendingStatus} onValueChange={setPendingStatus}>
+            <Select value={statusFilter} onValueChange={(v) => setFilter('estado', v)}>
               <SelectTrigger className="w-36 h-9 text-xs">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
@@ -302,7 +298,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
               </SelectContent>
             </Select>
 
-            <Select value={sortOrder} onValueChange={(v) => handleSortChange(v as SortOrder)}>
+            <Select value={sortFilter} onValueChange={(v) => setFilter('orden', v)}>
               <SelectTrigger className="w-52 h-9 text-xs">
                 <ArrowUpDown className="h-3.5 w-3.5 mr-1 shrink-0" />
                 <SelectValue placeholder="Ordenar" />
@@ -316,15 +312,12 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Button size="sm" className="h-8 text-xs" onClick={handleApplyFilters}>
-              Aplicar filtros
-            </Button>
             <Button
               size="sm"
               variant="outline"
               className="h-8 text-xs"
               onClick={handleClearFilters}
-              disabled={!hasActiveFilters && pendingType === 'all' && pendingTarifa === 'all' && pendingStatus === 'all'}
+              disabled={!hasActiveFilters}
             >
               Limpiar filtros
             </Button>
@@ -361,7 +354,6 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                   getCardStyle(client.profile_type)
                 )}
               >
-                {/* Avatar */}
                 <div
                   className={cn(
                     'flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-semibold text-sm',
@@ -403,11 +395,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                     )}
                   </div>
                 </div>
-                <ClientMenu
-                  client={client}
-                  onDelete={setDeleteTarget}
-                  onToggleActive={handleToggleActive}
-                />
+                <ClientMenu client={client} onDelete={setDeleteTarget} onToggleActive={handleToggleActive} />
               </div>
             ))
           )}
@@ -479,11 +467,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                         </Badge>
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <ClientMenu
-                          client={client}
-                          onDelete={setDeleteTarget}
-                          onToggleActive={handleToggleActive}
-                        />
+                        <ClientMenu client={client} onDelete={setDeleteTarget} onToggleActive={handleToggleActive} />
                       </td>
                     </tr>
                   ))
@@ -496,7 +480,6 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
 
       <NewClientModal open={showModal} onClose={() => setShowModal(false)} />
 
-      {/* Delete confirmation modal */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !deleting && !o && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
