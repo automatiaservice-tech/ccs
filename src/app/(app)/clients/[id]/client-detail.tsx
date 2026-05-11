@@ -59,10 +59,11 @@ interface ClientDetailProps {
   client: Client
   attendance: any[]
   invoices: any[]
+  backUrl?: string
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function ClientDetail({ client, attendance, invoices }: ClientDetailProps) {
+export function ClientDetail({ client, attendance, invoices, backUrl = '/clients' }: ClientDetailProps) {
   const router = useRouter()
   const now = new Date()
 
@@ -197,7 +198,7 @@ export function ClientDetail({ client, attendance, invoices }: ClientDetailProps
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/clients">
+        <Link href={backUrl}>
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>

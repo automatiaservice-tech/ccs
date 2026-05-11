@@ -73,11 +73,12 @@ function getTableRowStyle(profile_type: string) {
 
 interface ClientMenuProps {
   client: Client
+  clientHref: string
   onDelete: (client: Client) => void
   onToggleActive: (client: Client) => void
 }
 
-function ClientMenu({ client, onDelete, onToggleActive }: ClientMenuProps) {
+function ClientMenu({ client, clientHref, onDelete, onToggleActive }: ClientMenuProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -100,7 +101,7 @@ function ClientMenu({ client, onDelete, onToggleActive }: ClientMenuProps) {
         <div className="absolute right-0 top-9 z-50 min-w-[180px] rounded-lg border border-gray-200 bg-white shadow-lg py-1">
           <button
             className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            onClick={() => { setOpen(false); router.push(`/clients/${client.id}`) }}
+            onClick={() => { setOpen(false); router.push(clientHref) }}
           >
             <Eye className="h-4 w-4" />
             Ver ficha
@@ -144,6 +145,12 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
   const statusFilter = searchParams.get('estado') ?? 'all'
   const sortFilter = (searchParams.get('orden') as SortOrder) ?? 'alpha'
   const searchQuery = searchParams.get('q') ?? ''
+
+  // Build URL to client detail preserving current filters for back navigation
+  const clientUrl = (id: string) => {
+    const qs = searchParams.toString()
+    return `/clients/${id}${qs ? `?back=${encodeURIComponent('?' + qs)}` : ''}`
+  }
 
   // Local state for search input (responsive while typing)
   const [searchInput, setSearchInput] = useState(searchQuery)
@@ -359,13 +366,13 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                     'flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-semibold text-sm',
                     getAvatarStyle(client.profile_type)
                   )}
-                  onClick={() => router.push(`/clients/${client.id}`)}
+                  onClick={() => router.push(clientUrl(client.id))}
                 >
                   {client.name.charAt(0).toUpperCase()}
                 </div>
                 <div
                   className="flex-1 min-w-0 cursor-pointer"
-                  onClick={() => router.push(`/clients/${client.id}`)}
+                  onClick={() => router.push(clientUrl(client.id))}
                 >
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-gray-900 truncate">{client.name}</p>
@@ -395,7 +402,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                     )}
                   </div>
                 </div>
-                <ClientMenu client={client} onDelete={setDeleteTarget} onToggleActive={handleToggleActive} />
+                <ClientMenu client={client} clientHref={clientUrl(client.id)} onDelete={setDeleteTarget} onToggleActive={handleToggleActive} />
               </div>
             ))
           )}
@@ -430,7 +437,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                         'border-b border-gray-100 cursor-pointer transition-colors',
                         getTableRowStyle(client.profile_type)
                       )}
-                      onClick={() => router.push(`/clients/${client.id}`)}
+                      onClick={() => router.push(clientUrl(client.id))}
                     >
                       <td className="px-4 py-3.5">
                         <p className="text-sm font-semibold text-gray-900">{client.name}</p>
@@ -467,7 +474,7 @@ export function ClientsTable({ initialClients }: ClientsTableProps) {
                         </Badge>
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <ClientMenu client={client} onDelete={setDeleteTarget} onToggleActive={handleToggleActive} />
+                        <ClientMenu client={client} clientHref={clientUrl(client.id)} onDelete={setDeleteTarget} onToggleActive={handleToggleActive} />
                       </td>
                     </tr>
                   ))
