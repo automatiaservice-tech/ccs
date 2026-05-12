@@ -12,22 +12,29 @@ export default async function ClientPage({
   const { id } = await params
   const { back } = await searchParams
 
-  try {
-    const [client, attendance, invoices] = await Promise.all([
-      getClientById(id),
-      getClientAttendance(id),
-      getClientInvoices(id),
-    ])
+  const client = await getClientById(id).catch(() => null)
+  if (!client) notFound()
 
-    return (
-      <ClientDetail
-        client={client}
-        attendance={attendance ?? []}
-        invoices={invoices ?? []}
-        backUrl={back ? `/clients${decodeURIComponent(back)}` : '/clients'}
-      />
-    )
-  } catch {
-    notFound()
+  const [attendance, invoices] = await Promise.all([
+    getClientAttendance(id).catch(() => []),
+    getClientInvoices(id).catch(() => []),
+  ])
+
+  let backUrl = '/clients'
+  if (back) {
+    try {
+      backUrl = `/clients${decodeURIComponent(back)}`
+    } catch {
+      // back param malformed — fall back to /clients
+    }
   }
+
+  return (
+    <ClientDetail
+      client={client}
+      attendance={attendance ?? []}
+      invoices={invoices ?? []}
+      backUrl={backUrl}
+    />
+  )
 }
