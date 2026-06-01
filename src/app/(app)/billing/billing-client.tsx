@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Loader2, ChevronRight, Trash2, PlusCircle, AlertTriangle, ArrowUpDown } from 'lucide-react'
+import { Plus, Loader2, ChevronRight, Trash2, PlusCircle, AlertTriangle, ArrowUpDown, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -32,25 +32,37 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
   const router = useRouter()
   const now = new Date()
 
-  // ── Staged filters (initialized from URL) ──────────────────────────────
-  const [pendingMonth, setPendingMonth] = useState(searchParams.get('mes') ?? 'all')
-  const [pendingYear, setPendingYear] = useState(searchParams.get('año') ?? 'all')
+  const DEFAULT_MONTH = String(now.getMonth() + 1)
+  const DEFAULT_YEAR = String(now.getFullYear())
+
+  // ── Staged filters (initialized from URL, defaulting to current month/year) ──
+  const [pendingMonth, setPendingMonth] = useState(searchParams.get('mes') ?? DEFAULT_MONTH)
+  const [pendingYear, setPendingYear] = useState(searchParams.get('año') ?? DEFAULT_YEAR)
   const [pendingStatus, setPendingStatus] = useState(searchParams.get('estado') ?? 'all')
   const [pendingClientType, setPendingClientType] = useState(searchParams.get('tipo') ?? 'all')
   const [pendingTarifa, setPendingTarifa] = useState(searchParams.get('tarifa') ?? 'all')
   const [pendingSort, setPendingSort] = useState(searchParams.get('orden') ?? 'recientes')
 
-  const [activeMonth, setActiveMonth] = useState(searchParams.get('mes') ?? 'all')
-  const [activeYear, setActiveYear] = useState(searchParams.get('año') ?? 'all')
+  const [activeMonth, setActiveMonth] = useState(searchParams.get('mes') ?? DEFAULT_MONTH)
+  const [activeYear, setActiveYear] = useState(searchParams.get('año') ?? DEFAULT_YEAR)
   const [activeStatus, setActiveStatus] = useState(searchParams.get('estado') ?? 'all')
   const [activeClientType, setActiveClientType] = useState(searchParams.get('tipo') ?? 'all')
   const [activeTarifa, setActiveTarifa] = useState(searchParams.get('tarifa') ?? 'all')
   const [activeSort, setActiveSort] = useState(searchParams.get('orden') ?? 'recientes')
 
+  // ── Real-time search filter ──────────────────────────────────────────────
+  const [buscar, setBuscar] = useState(searchParams.get('buscar') ?? '')
+
   const buildURL = (params: Record<string, string>) => {
     const sp = new URLSearchParams()
     Object.entries(params).forEach(([k, v]) => {
-      if (v && v !== 'all' && !(k === 'orden' && v === 'recientes')) sp.set(k, v)
+      if (!v) return
+      // mes/año: include only when different from current-month defaults
+      if (k === 'mes') { if (v !== DEFAULT_MONTH) sp.set(k, v); return }
+      if (k === 'año') { if (v !== DEFAULT_YEAR) sp.set(k, v); return }
+      if (v === 'all') return
+      if (k === 'orden' && v === 'recientes') return
+      sp.set(k, v)
     })
     const qs = sp.toString()
     return qs ? `${pathname}?${qs}` : pathname
@@ -64,27 +76,32 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
     setActiveTarifa(pendingTarifa)
     setActiveSort(pendingSort)
     setSelectedIds(new Set())
-    router.replace(buildURL({ mes: pendingMonth, año: pendingYear, estado: pendingStatus, tipo: pendingClientType, tarifa: pendingTarifa, orden: pendingSort }))
+    router.replace(buildURL({ mes: pendingMonth, año: pendingYear, estado: pendingStatus, tipo: pendingClientType, tarifa: pendingTarifa, orden: pendingSort, buscar }))
   }
 
   const handleClearFilters = () => {
-    setPendingMonth('all'); setPendingYear('all'); setPendingStatus('all')
+    setPendingMonth(DEFAULT_MONTH); setPendingYear(DEFAULT_YEAR); setPendingStatus('all')
     setPendingClientType('all'); setPendingTarifa('all'); setPendingSort('recientes')
-    setActiveMonth('all'); setActiveYear('all'); setActiveStatus('all')
+    setActiveMonth(DEFAULT_MONTH); setActiveYear(DEFAULT_YEAR); setActiveStatus('all')
     setActiveClientType('all'); setActiveTarifa('all'); setActiveSort('recientes')
+    setBuscar('')
     setSelectedIds(new Set())
     router.replace(pathname)
   }
 
+  const handleBuscarChange = (value: string) => {
+    setBuscar(value)
+    router.replace(buildURL({ mes: activeMonth, año: activeYear, estado: activeStatus, tipo: activeClientType, tarifa: activeTarifa, orden: activeSort, buscar: value }))
+  }
+
   const hasActiveFilters =
-    activeMonth !== 'all' || activeYear !== 'all' || activeStatus !== 'all' ||
-    activeClientType !== 'all' || activeTarifa !== 'all' || activeSort !== 'recientes'
+    activeMonth !== DEFAULT_MONTH || activeYear !== DEFAULT_YEAR || activeStatus !== 'all' ||
+    activeClientType !== 'all' || activeTarifa !== 'all' || activeSort !== 'recientes' || buscar !== ''
 
   // ── Selection state ─────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   // ── Delete modal state ──────────────────────────────────────────────────
-  // 'selected' = eliminar seleccionadas, 'all' = eliminar todas las filtradas
   const [deleteTarget, setDeleteTarget] = useState<'selected' | 'all' | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -100,12 +117,14 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
   const [savingBank, setSavingBank] = useState(false)
 
   const filtered = useMemo(() => {
+    const buscarLower = buscar.trim().toLowerCase()
     const list = initialInvoices.filter((inv) => {
       if (activeMonth !== 'all' && inv.month !== parseInt(activeMonth)) return false
       if (activeYear !== 'all' && inv.year !== parseInt(activeYear)) return false
       if (activeStatus !== 'all' && inv.status !== activeStatus) return false
       if (activeClientType !== 'all' && inv.clients?.profile_type !== activeClientType) return false
       if (activeTarifa !== 'all' && inv.clients?.rate_id !== activeTarifa) return false
+      if (buscarLower && !(inv.clients?.name ?? '').toLowerCase().includes(buscarLower)) return false
       return true
     })
     return [...list].sort((a, b) => {
@@ -124,9 +143,13 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
         }
       }
     })
-  }, [initialInvoices, activeMonth, activeYear, activeStatus, activeClientType, activeTarifa, activeSort])
+  }, [initialInvoices, activeMonth, activeYear, activeStatus, activeClientType, activeTarifa, activeSort, buscar])
 
   const filteredTotal = filtered.reduce((s: number, i: any) => s + i.total_amount, 0)
+
+  // ── Current query string (for preserving filters when navigating to invoice) ─
+  const currentQS = searchParams.toString()
+  const invoiceHref = (id: string) => `/billing/${id}${currentQS ? `?${currentQS}` : ''}`
 
   // ── Selection helpers ───────────────────────────────────────────────────
   const allFilteredSelected = filtered.length > 0 && filtered.every((inv) => selectedIds.has(inv.id))
@@ -261,6 +284,26 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
 
         {/* ── Filter panel ── */}
         <div className="rounded-xl border border-[#E2E8F0] bg-slate-50/60 p-3 space-y-3">
+          {/* Search input */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            <Input
+              value={buscar}
+              onChange={(e) => handleBuscarChange(e.target.value)}
+              placeholder="Buscar cliente..."
+              className="pl-8 pr-8 h-9 text-xs"
+            />
+            {buscar && (
+              <button
+                onClick={() => handleBuscarChange('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
           <div className="flex gap-2 flex-wrap">
             <Select value={pendingMonth} onValueChange={setPendingMonth}>
               <SelectTrigger className="w-36 h-9 text-xs"><SelectValue placeholder="Mes" /></SelectTrigger>
@@ -328,7 +371,11 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
             <Button
               size="sm" variant="outline" className="h-8 text-xs"
               onClick={handleClearFilters}
-              disabled={!hasActiveFilters && pendingMonth === 'all' && pendingYear === 'all' && pendingStatus === 'all' && pendingClientType === 'all' && pendingTarifa === 'all'}
+              disabled={
+                !hasActiveFilters &&
+                pendingMonth === DEFAULT_MONTH && pendingYear === DEFAULT_YEAR &&
+                pendingStatus === 'all' && pendingClientType === 'all' && pendingTarifa === 'all'
+              }
             >
               Limpiar filtros
             </Button>
@@ -363,7 +410,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                     {/* Card content — click navigates */}
                     <button
                       className="flex-1 min-w-0 text-left"
-                      onClick={() => router.push(`/billing/${inv.id}`)}
+                      onClick={() => router.push(invoiceHref(inv.id))}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
@@ -445,7 +492,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                       <tr
                         key={inv.id}
                         className={`border-b border-[#F1F5F9] cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
-                        onClick={() => router.push(`/billing/${inv.id}`)}
+                        onClick={() => router.push(invoiceHref(inv.id))}
                       >
                         <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                           <input

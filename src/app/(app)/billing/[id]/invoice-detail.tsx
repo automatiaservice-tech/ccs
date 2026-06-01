@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
@@ -97,7 +96,7 @@ function InvoiceSection({
 
 // ═════════════════════════════════════════════════════════════════════════════
 
-export function InvoiceDetail({ invoice }: { invoice: any }) {
+export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any; backUrl?: string }) {
   const router = useRouter()
   const [updating, setUpdating] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -242,11 +241,10 @@ export function InvoiceDetail({ invoice }: { invoice: any }) {
     <div className="space-y-6 max-w-3xl">
       {/* ── Action header ── */}
       <div className="flex items-center gap-4 no-print">
-        <Link href="/billing">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
+        <Button variant="ghost" size="sm" onClick={() => router.push(backUrl)} className="gap-1.5 text-slate-600">
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">Volver</span>
+        </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-[#0F172A]">
