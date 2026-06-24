@@ -439,10 +439,13 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                             {inv.adjustment_amount ? <span title="Factura con ajuste aplicado">⚠️ </span> : null}
                             {formatCurrency(inv.total_amount)}
                           </span>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 flex-wrap">
                             {inv.status === 'paid' && inv.payment_method === 'efectivo' && <span className="text-xs">💵</span>}
                             {inv.status === 'paid' && inv.payment_method === 'transferencia' && <span className="text-xs">🏦</span>}
                             <Badge className={getStatusBadgeColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
+                            {inv.status === 'draft' && inv.invoice_lines?.some((l: any) => l.original_amount != null) && (
+                              <Badge className="text-[10px] border-amber-300 text-amber-600 bg-amber-50 px-1.5 py-0">Editada</Badge>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -530,10 +533,13 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                           {getMonthName(inv.month)} {inv.year}
                         </td>
                         <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 flex-wrap">
                             {inv.status === 'paid' && inv.payment_method === 'efectivo' && <span className="text-sm">💵</span>}
                             {inv.status === 'paid' && inv.payment_method === 'transferencia' && <span className="text-sm">🏦</span>}
                             <Badge className={getStatusBadgeColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
+                            {inv.status === 'draft' && inv.invoice_lines?.some((l: any) => l.original_amount != null) && (
+                              <Badge className="text-[10px] border-amber-300 text-amber-600 bg-amber-50 px-1.5 py-0">Editada</Badge>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3.5 text-right text-sm font-semibold text-[#0F172A]">

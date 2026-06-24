@@ -252,7 +252,7 @@ export async function getInvoices(filters?: {
   const supabase = await createClient()
   let query = supabase
     .from('invoices')
-    .select('*, clients(*)')
+    .select('*, clients(*), invoice_lines(id, original_amount)')
     .order('year', { ascending: false })
     .order('month', { ascending: false })
     .order('created_at', { ascending: false })
@@ -551,4 +551,65 @@ export async function updateClientBankAccount(clientId: string, iban: string) {
   if (error) throw new Error(`Error al guardar la cuenta bancaria: ${error.message}`)
   revalidatePath('/billing')
   revalidatePath(`/clients/${clientId}`)
+}
+
+export async function updateInvoiceLine(
+  lineId: string,
+  updates: { amount?: number; note?: string }
+) {
+  const supabase = await createClient()
+
+  const { data: line, error: lineErr } = await supabase
+    .from('invoice_lines')
+    .select('amount, original_amount, invoice_id')
+    .eq('id', lineId)
+    .single()
+
+  if (lineErr) throw new Error(`Error fetching line: ${lineErr.message}`)
+
+  const patch: Record<string, unknown> = {}
+
+  if (updates.amount !== undefined) {
+    // Preserve original_amount on first edit
+    if (line.original_amount === null || line.original_amount === undefined) {
+      patch.original_amount = line.amount
+    }
+    patch.amount = updates.amount
+  }
+
+  if (updates.note !== undefined) {
+    patch.note = updates.note || null
+  }
+
+  if (Object.keys(patch).length === 0) return
+
+  const { error } = await supabase.from('invoice_lines').update(patch).eq('id', lineId)
+  if (error) throw new Error(`Error updating line: ${error.message}`)
+
+  // Recompute invoice total
+  const { data: allLines } = await supabase
+    .from('invoice_lines')
+    .select('amount')
+    .eq('invoice_id', line.invoice_id)
+
+  const linesTotal = (allLines || []).reduce((s, l) => s + (l.amount as number), 0)
+
+  const { data: inv } = await supabase
+    .from('invoices')
+    .select('adjustment_amount')
+    .eq('id', line.invoice_id)
+    .single()
+
+  const adjAmount = (inv?.adjustment_amount as number) || 0
+  const newTotal = Math.round((linesTotal + adjAmount) * 100) / 100
+
+  const { error: invErr } = await supabase
+    .from('invoices')
+    .update({ total_amount: newTotal })
+    .eq('id', line.invoice_id)
+
+  if (invErr) throw new Error(`Error updating invoice total: ${invErr.message}`)
+
+  revalidatePath('/billing')
+  revalidatePath(`/billing/${line.invoice_id}`)
 }

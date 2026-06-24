@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { ArrowLeft, Download, CheckCircle, Send, Loader2, Banknote, Building2, Pencil, Trash2, Save, X, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Download, CheckCircle, Send, Loader2, Banknote, Building2, Pencil, Trash2, Save, X, AlertCircle, StickyNote } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,7 +26,24 @@ import {
   getStatusBadgeColor,
   getStatusLabel,
 } from '@/lib/utils'
-import { updateInvoiceStatus, updateClientBankAccount, updateInvoiceLines, updateInvoiceAdjustment } from '@/lib/actions/billing'
+import { updateInvoiceStatus, updateClientBankAccount, updateInvoiceLines, updateInvoiceAdjustment, updateInvoiceLine } from '@/lib/actions/billing'
+
+// ── Line edit state ────────────────────────────────────────────────────────
+type LineEditState = {
+  editingAmountLineId: string | null
+  editingAmountValue: string
+  onAmountClick: (line: any) => void
+  onAmountChange: (val: string) => void
+  onAmountSave: () => void
+  onAmountCancel: () => void
+  savingLineId: string | null
+  editingNoteLineId: string | null
+  editingNoteValue: string
+  onNoteToggle: (line: any) => void
+  onNoteChange: (val: string) => void
+  onNoteSave: () => void
+  onNoteCancel: () => void
+}
 
 // ── Line categorisation based on description prefix ───────────────────────
 function lineType(description: string): 'fixed' | 'individual' | 'variable' | 'other' {
@@ -42,11 +59,13 @@ function InvoiceSection({
   lines,
   editMode,
   onDeleteLine,
+  lineEditState,
 }: {
   title: string
   lines: any[]
   editMode?: boolean
   onDeleteLine?: (id: string) => void
+  lineEditState?: LineEditState
 }) {
   if (lines.length === 0) return null
   const subtotal = lines.reduce((s: number, l: any) => s + l.amount, 0)
@@ -56,33 +75,139 @@ function InvoiceSection({
       <p className="text-xs font-semibold text-[#64748B] uppercase tracking-wide pt-2">{title}</p>
       <table className="w-full">
         <tbody>
-          {lines.map((line: any) => (
-            <tr key={line.id} className="border-b border-[#F1F5F9]">
-              <td className="py-2.5 text-sm text-slate-600 w-28">{formatDate(line.date)}</td>
-              <td className="py-2.5 text-sm text-slate-700 pr-4">{line.description}</td>
-              {line.attendees != null ? (
-                <td className="py-2.5 text-xs text-[#64748B] text-center w-24 hidden sm:table-cell">
-                  {line.attendees} asist.
-                </td>
-              ) : (
-                <td className="hidden sm:table-cell" />
-              )}
-              <td className="py-2.5 text-sm text-right text-[#0F172A] font-medium w-24">
-                {formatCurrency(line.amount)}
-              </td>
-              {editMode && (
-                <td className="py-2.5 w-10 text-right">
-                  <button
-                    onClick={() => onDeleteLine?.(line.id)}
-                    className="p-1 text-red-400 hover:text-red-600 transition-colors"
-                    title="Eliminar línea"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </td>
-              )}
-            </tr>
-          ))}
+          {lines.map((line: any) => {
+            const isEditingAmount = editMode && lineEditState?.editingAmountLineId === line.id
+            const isEditingNote = editMode && lineEditState?.editingNoteLineId === line.id
+            const isSaving = lineEditState?.savingLineId === line.id
+            const hasModified = line.original_amount != null && line.original_amount !== line.amount
+
+            return (
+              <Fragment key={line.id}>
+                <tr className="border-b border-[#F1F5F9]">
+                  <td className="py-2.5 text-sm text-slate-600 w-28">{formatDate(line.date)}</td>
+                  <td className="py-2.5 text-sm text-slate-700 pr-4">{line.description}</td>
+                  {line.attendees != null ? (
+                    <td className="py-2.5 text-xs text-[#64748B] text-center w-24 hidden sm:table-cell">
+                      {line.attendees} asist.
+                    </td>
+                  ) : (
+                    <td className="hidden sm:table-cell" />
+                  )}
+                  <td className="py-2.5 text-sm text-right text-[#0F172A] font-medium w-28">
+                    {editMode && lineEditState ? (
+                      isEditingAmount ? (
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={lineEditState.editingAmountValue}
+                          onChange={(e) => lineEditState.onAmountChange(e.target.value)}
+                          onBlur={lineEditState.onAmountSave}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') lineEditState.onAmountSave()
+                            if (e.key === 'Escape') lineEditState.onAmountCancel()
+                          }}
+                          autoFocus
+                          className="w-20 text-right text-sm border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => lineEditState.onAmountClick(line)}
+                          className="text-right hover:text-blue-600 transition-colors"
+                          title="Clic para editar importe"
+                          disabled={isSaving}
+                        >
+                          {isSaving ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin inline" />
+                          ) : (
+                            <span className="flex items-center justify-end gap-1.5">
+                              {hasModified && (
+                                <span className="line-through text-slate-400 text-xs">
+                                  {formatCurrency(line.original_amount)}
+                                </span>
+                              )}
+                              <span className={hasModified ? 'text-amber-600 font-semibold' : ''}>
+                                {formatCurrency(line.amount)}
+                              </span>
+                            </span>
+                          )}
+                        </button>
+                      )
+                    ) : (
+                      <span className="flex items-center justify-end gap-1.5">
+                        {hasModified && (
+                          <span className="line-through text-slate-400 text-xs">
+                            {formatCurrency(line.original_amount)}
+                          </span>
+                        )}
+                        <span className={hasModified ? 'text-amber-600 font-semibold' : ''}>
+                          {formatCurrency(line.amount)}
+                        </span>
+                      </span>
+                    )}
+                  </td>
+                  {editMode && lineEditState && (
+                    <td className="py-2.5 w-8 text-center">
+                      <button
+                        onClick={() => lineEditState.onNoteToggle(line)}
+                        className={`p-1 transition-colors ${
+                          line.note
+                            ? 'text-amber-500 hover:text-amber-600'
+                            : 'text-slate-300 hover:text-slate-500'
+                        }`}
+                        title={line.note ? `Nota: ${line.note}` : 'Añadir nota'}
+                      >
+                        <StickyNote className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  )}
+                  {editMode && (
+                    <td className="py-2.5 w-10 text-right">
+                      <button
+                        onClick={() => onDeleteLine?.(line.id)}
+                        className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                        title="Eliminar línea"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+                {isEditingNote && (
+                  <tr className="bg-amber-50/40">
+                    <td colSpan={6} className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <StickyNote className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        <input
+                          type="text"
+                          value={lineEditState!.editingNoteValue}
+                          onChange={(e) => lineEditState!.onNoteChange(e.target.value)}
+                          onBlur={lineEditState!.onNoteSave}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') lineEditState!.onNoteSave()
+                            if (e.key === 'Escape') lineEditState!.onNoteCancel()
+                          }}
+                          placeholder="Nota (ej. Descuento especial, Sesión recuperada...)"
+                          autoFocus
+                          className="flex-1 text-xs border border-amber-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-300 bg-white"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {line.note && !isEditingNote && (
+                  <tr className="bg-amber-50/20">
+                    <td colSpan={6} className="px-3 py-1.5">
+                      <span className="flex items-center gap-1.5 text-xs text-amber-700 italic">
+                        <StickyNote className="h-3 w-3 shrink-0" />
+                        {line.note}
+                      </span>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
         </tbody>
       </table>
       <div className="flex justify-end pt-1 pb-2">
@@ -112,13 +237,22 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
   const [editLines, setEditLines] = useState<any[]>(invoice.invoice_lines || [])
   const [saving, setSaving] = useState(false)
 
+  // ── Inline amount editing ────────────────────────────────────────────────
+  const [editingAmountLineId, setEditingAmountLineId] = useState<string | null>(null)
+  const [editingAmountValue, setEditingAmountValue] = useState('')
+  const [savingLineId, setSavingLineId] = useState<string | null>(null)
+
+  // ── Inline note editing ──────────────────────────────────────────────────
+  const [editingNoteLineId, setEditingNoteLineId] = useState<string | null>(null)
+  const [editingNoteValue, setEditingNoteValue] = useState('')
+
   // ── Adjustment state ─────────────────────────────────────────────────────
   const [editingAdjustment, setEditingAdjustment] = useState(false)
   const [adjustmentInput, setAdjustmentInput] = useState(String(invoice.adjustment_amount ?? 0))
   const [adjustmentReasonInput, setAdjustmentReasonInput] = useState(invoice.adjustment_reason ?? '')
   const [savingAdjustment, setSavingAdjustment] = useState(false)
 
-  const canEdit = invoice.status === 'draft' || invoice.status === 'sent'
+  const canEdit = invoice.status === 'draft'
   const editTotal = editLines.reduce((s: number, l: any) => s + l.amount, 0)
 
   // Derived totals
@@ -127,11 +261,105 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
   const displayLinesTotal = editMode ? editTotal : linesTotal
   const displayFinalTotal = displayLinesTotal + adjAmount
 
+  // ── Line amount editing ──────────────────────────────────────────────────
+  const saveLineAmount = async (lineId: string, value: string) => {
+    const newAmount = parseFloat(value)
+    if (isNaN(newAmount) || newAmount < 0) return
+    const line = editLines.find((l) => l.id === lineId)
+    if (!line || newAmount === line.amount) return
+
+    setSavingLineId(lineId)
+    try {
+      await updateInvoiceLine(lineId, { amount: newAmount })
+      setEditLines((prev) =>
+        prev.map((l) =>
+          l.id === lineId
+            ? { ...l, amount: newAmount, original_amount: l.original_amount ?? l.amount }
+            : l
+        )
+      )
+    } catch {
+      toast.error('Error al guardar el importe')
+    } finally {
+      setSavingLineId(null)
+    }
+  }
+
+  const handleAmountClick = (line: any) => {
+    setEditingAmountLineId(line.id)
+    setEditingAmountValue(String(line.amount))
+  }
+
+  const handleAmountSave = async () => {
+    if (!editingAmountLineId) return
+    const lineId = editingAmountLineId
+    const value = editingAmountValue
+    setEditingAmountLineId(null)
+    await saveLineAmount(lineId, value)
+  }
+
+  const handleAmountCancel = () => {
+    setEditingAmountLineId(null)
+  }
+
+  // ── Line note editing ────────────────────────────────────────────────────
+  const handleNoteToggle = (line: any) => {
+    if (editingNoteLineId === line.id) {
+      setEditingNoteLineId(null)
+    } else {
+      setEditingNoteLineId(line.id)
+      setEditingNoteValue(line.note ?? '')
+    }
+  }
+
+  const handleNoteSave = async () => {
+    if (!editingNoteLineId) return
+    const lineId = editingNoteLineId
+    const note = editingNoteValue
+    setEditingNoteLineId(null)
+    try {
+      await updateInvoiceLine(lineId, { note })
+      setEditLines((prev) =>
+        prev.map((l) => (l.id === lineId ? { ...l, note: note || null } : l))
+      )
+    } catch {
+      toast.error('Error al guardar la nota')
+    }
+  }
+
+  const handleNoteCancel = () => {
+    setEditingNoteLineId(null)
+  }
+
+  const lineEditState: LineEditState = {
+    editingAmountLineId,
+    editingAmountValue,
+    onAmountClick: handleAmountClick,
+    onAmountChange: setEditingAmountValue,
+    onAmountSave: handleAmountSave,
+    onAmountCancel: handleAmountCancel,
+    savingLineId,
+    editingNoteLineId,
+    editingNoteValue,
+    onNoteToggle: handleNoteToggle,
+    onNoteChange: setEditingNoteValue,
+    onNoteSave: handleNoteSave,
+    onNoteCancel: handleNoteCancel,
+  }
+
+  // ── Edit mode handlers ───────────────────────────────────────────────────
   const handleDeleteLine = (lineId: string) => {
     setEditLines((prev) => prev.filter((l) => l.id !== lineId))
   }
 
   const handleSaveEdit = async () => {
+    // Save any pending amount edit first
+    if (editingAmountLineId) {
+      const lineId = editingAmountLineId
+      const value = editingAmountValue
+      setEditingAmountLineId(null)
+      await saveLineAmount(lineId, value)
+    }
     setSaving(true)
     try {
       await updateInvoiceLines(invoice.id, editLines.map((l) => l.id))
@@ -145,6 +373,14 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
     }
   }
 
+  const handleCancelEdit = () => {
+    setEditLines(invoice.invoice_lines || [])
+    setEditingAmountLineId(null)
+    setEditingNoteLineId(null)
+    setEditMode(false)
+  }
+
+  // ── Adjustment handlers ──────────────────────────────────────────────────
   const handleSaveAdjustment = async () => {
     const amount = parseFloat(adjustmentInput)
     if (isNaN(amount)) {
@@ -172,11 +408,6 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
     setAdjustmentInput(String(invoice.adjustment_amount ?? 0))
     setAdjustmentReasonInput(invoice.adjustment_reason ?? '')
     setEditingAdjustment(false)
-  }
-
-  const handleCancelEdit = () => {
-    setEditLines(invoice.invoice_lines || [])
-    setEditMode(false)
   }
 
   const lastFour = localBankAccount ? localBankAccount.slice(-4) : null
@@ -321,7 +552,9 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 no-print">
           <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
           <p className="text-sm text-amber-700">
-            El total se actualizará al eliminar sesiones. Usa el icono <Trash2 className="h-3.5 w-3.5 inline text-red-400" /> para eliminar líneas.
+            Modo edición: haz clic en un importe para modificarlo (se guarda al salir del campo),
+            usa <StickyNote className="h-3.5 w-3.5 inline text-amber-500" /> para añadir notas,
+            o <Trash2 className="h-3.5 w-3.5 inline text-red-400" /> para eliminar líneas.
           </p>
         </div>
       )}
@@ -420,16 +653,40 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
           <div className="space-y-2">
             {hasMultipleSections ? (
               <>
-                <InvoiceSection title="Grupo Fijo" lines={fixedLines} editMode={editMode} onDeleteLine={handleDeleteLine} />
+                <InvoiceSection
+                  title="Grupo Fijo"
+                  lines={fixedLines}
+                  editMode={editMode}
+                  onDeleteLine={handleDeleteLine}
+                  lineEditState={editMode ? lineEditState : undefined}
+                />
                 {(fixedLines.length > 0 && (individualLines.length > 0 || variableLines.length > 0)) && (
                   <Separator className="my-1" />
                 )}
-                <InvoiceSection title="Sesiones Personales" lines={individualLines} editMode={editMode} onDeleteLine={handleDeleteLine} />
+                <InvoiceSection
+                  title="Sesiones Personales"
+                  lines={individualLines}
+                  editMode={editMode}
+                  onDeleteLine={handleDeleteLine}
+                  lineEditState={editMode ? lineEditState : undefined}
+                />
                 {(individualLines.length > 0 && variableLines.length > 0) && (
                   <Separator className="my-1" />
                 )}
-                <InvoiceSection title="Grupo Personal Variable" lines={variableLines} editMode={editMode} onDeleteLine={handleDeleteLine} />
-                <InvoiceSection title="Otros" lines={otherLines} editMode={editMode} onDeleteLine={handleDeleteLine} />
+                <InvoiceSection
+                  title="Grupo Personal Variable"
+                  lines={variableLines}
+                  editMode={editMode}
+                  onDeleteLine={handleDeleteLine}
+                  lineEditState={editMode ? lineEditState : undefined}
+                />
+                <InvoiceSection
+                  title="Otros"
+                  lines={otherLines}
+                  editMode={editMode}
+                  onDeleteLine={handleDeleteLine}
+                  lineEditState={editMode ? lineEditState : undefined}
+                />
               </>
             ) : (
               <table className="w-full">
@@ -441,33 +698,140 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
                       Asistentes
                     </th>
                     <th className="text-right py-2 text-xs font-medium text-[#64748B] uppercase">Importe</th>
+                    {editMode && <th className="w-8" />}
                     {editMode && <th className="w-10" />}
                   </tr>
                 </thead>
                 <tbody>
-                  {displayLines.map((line: any) => (
-                    <tr key={line.id} className="border-b border-[#F1F5F9]">
-                      <td className="py-3 text-sm text-slate-600">{formatDate(line.date)}</td>
-                      <td className="py-3 text-sm text-slate-700">{line.description}</td>
-                      <td className="py-3 text-sm text-center text-[#64748B] hidden sm:table-cell">
-                        {line.attendees ?? '—'}
-                      </td>
-                      <td className="py-3 text-sm text-right text-[#0F172A] font-medium">
-                        {formatCurrency(line.amount)}
-                      </td>
-                      {editMode && (
-                        <td className="py-3 text-right">
-                          <button
-                            onClick={() => handleDeleteLine(line.id)}
-                            className="p-1 text-red-400 hover:text-red-600 transition-colors"
-                            title="Eliminar línea"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
+                  {displayLines.map((line: any) => {
+                    const isEditingAmount = editMode && editingAmountLineId === line.id
+                    const isEditingNote = editMode && editingNoteLineId === line.id
+                    const isSaving = savingLineId === line.id
+                    const hasModified = line.original_amount != null && line.original_amount !== line.amount
+
+                    return (
+                      <Fragment key={line.id}>
+                        <tr className="border-b border-[#F1F5F9]">
+                          <td className="py-3 text-sm text-slate-600">{formatDate(line.date)}</td>
+                          <td className="py-3 text-sm text-slate-700">{line.description}</td>
+                          <td className="py-3 text-sm text-center text-[#64748B] hidden sm:table-cell">
+                            {line.attendees ?? '—'}
+                          </td>
+                          <td className="py-3 text-sm text-right text-[#0F172A] font-medium">
+                            {editMode ? (
+                              isEditingAmount ? (
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={editingAmountValue}
+                                  onChange={(e) => setEditingAmountValue(e.target.value)}
+                                  onBlur={handleAmountSave}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleAmountSave()
+                                    if (e.key === 'Escape') handleAmountCancel()
+                                  }}
+                                  autoFocus
+                                  className="w-20 text-right text-sm border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                />
+                              ) : (
+                                <button
+                                  onClick={() => handleAmountClick(line)}
+                                  className="text-right hover:text-blue-600 transition-colors"
+                                  title="Clic para editar importe"
+                                  disabled={isSaving}
+                                >
+                                  {isSaving ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin inline" />
+                                  ) : (
+                                    <span className="flex items-center justify-end gap-1.5">
+                                      {hasModified && (
+                                        <span className="line-through text-slate-400 text-xs">
+                                          {formatCurrency(line.original_amount)}
+                                        </span>
+                                      )}
+                                      <span className={hasModified ? 'text-amber-600 font-semibold' : ''}>
+                                        {formatCurrency(line.amount)}
+                                      </span>
+                                    </span>
+                                  )}
+                                </button>
+                              )
+                            ) : (
+                              <span className="flex items-center justify-end gap-1.5">
+                                {hasModified && (
+                                  <span className="line-through text-slate-400 text-xs">
+                                    {formatCurrency(line.original_amount)}
+                                  </span>
+                                )}
+                                <span className={hasModified ? 'text-amber-600 font-semibold' : ''}>
+                                  {formatCurrency(line.amount)}
+                                </span>
+                              </span>
+                            )}
+                          </td>
+                          {editMode && (
+                            <td className="py-3 w-8 text-center">
+                              <button
+                                onClick={() => handleNoteToggle(line)}
+                                className={`p-1 transition-colors ${
+                                  line.note
+                                    ? 'text-amber-500 hover:text-amber-600'
+                                    : 'text-slate-300 hover:text-slate-500'
+                                }`}
+                                title={line.note ? `Nota: ${line.note}` : 'Añadir nota'}
+                              >
+                                <StickyNote className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          )}
+                          {editMode && (
+                            <td className="py-3 w-10 text-right">
+                              <button
+                                onClick={() => handleDeleteLine(line.id)}
+                                className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                                title="Eliminar línea"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                        {isEditingNote && (
+                          <tr className="bg-amber-50/40">
+                            <td colSpan={6} className="px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <StickyNote className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                <input
+                                  type="text"
+                                  value={editingNoteValue}
+                                  onChange={(e) => setEditingNoteValue(e.target.value)}
+                                  onBlur={handleNoteSave}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleNoteSave()
+                                    if (e.key === 'Escape') handleNoteCancel()
+                                  }}
+                                  placeholder="Nota (ej. Descuento especial, Sesión recuperada...)"
+                                  autoFocus
+                                  className="flex-1 text-xs border border-amber-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-300 bg-white"
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        {line.note && !isEditingNote && (
+                          <tr className="bg-amber-50/20">
+                            <td colSpan={6} className="px-3 py-1.5">
+                              <span className="flex items-center gap-1.5 text-xs text-amber-700 italic">
+                                <StickyNote className="h-3 w-3 shrink-0" />
+                                {line.note}
+                              </span>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             )}
