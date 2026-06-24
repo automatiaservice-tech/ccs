@@ -559,13 +559,17 @@ export async function updateInvoiceLine(
 ) {
   const supabase = await createClient()
 
+  // Step 1: fetch current line (amount + original_amount + invoice_id)
   const { data: line, error: lineErr } = await supabase
     .from('invoice_lines')
     .select('amount, original_amount, invoice_id')
     .eq('id', lineId)
     .single()
 
-  if (lineErr) throw new Error(`Error fetching line: ${lineErr.message}`)
+  if (lineErr) {
+    console.error('[updateInvoiceLine] Step 1 SELECT error:', JSON.stringify(lineErr))
+    throw new Error(`Error fetching line: ${lineErr.message}`)
+  }
 
   const patch: Record<string, unknown> = {}
 
@@ -583,32 +587,49 @@ export async function updateInvoiceLine(
 
   if (Object.keys(patch).length === 0) return
 
+  // Step 2: update invoice_line
+  console.error('[updateInvoiceLine] Step 2 patch:', JSON.stringify(patch))
   const { error } = await supabase.from('invoice_lines').update(patch).eq('id', lineId)
-  if (error) throw new Error(`Error updating line: ${error.message}`)
+  if (error) {
+    console.error('[updateInvoiceLine] Step 2 UPDATE error:', JSON.stringify(error))
+    throw new Error(`Error updating line: ${error.message}`)
+  }
 
-  // Recompute invoice total
-  const { data: allLines } = await supabase
+  // Step 3: recompute invoice total
+  const { data: allLines, error: linesErr } = await supabase
     .from('invoice_lines')
     .select('amount')
     .eq('invoice_id', line.invoice_id)
 
+  if (linesErr) {
+    console.error('[updateInvoiceLine] Step 3 SELECT lines error:', JSON.stringify(linesErr))
+  }
+
   const linesTotal = (allLines || []).reduce((s, l) => s + (l.amount as number), 0)
 
-  const { data: inv } = await supabase
+  const { data: inv, error: invSelectErr } = await supabase
     .from('invoices')
     .select('adjustment_amount')
     .eq('id', line.invoice_id)
     .single()
 
+  if (invSelectErr) {
+    console.error('[updateInvoiceLine] Step 3 SELECT invoice error:', JSON.stringify(invSelectErr))
+  }
+
   const adjAmount = (inv?.adjustment_amount as number) || 0
   const newTotal = Math.round((linesTotal + adjAmount) * 100) / 100
 
+  // Step 4: update invoice total_amount
   const { error: invErr } = await supabase
     .from('invoices')
     .update({ total_amount: newTotal })
     .eq('id', line.invoice_id)
 
-  if (invErr) throw new Error(`Error updating invoice total: ${invErr.message}`)
+  if (invErr) {
+    console.error('[updateInvoiceLine] Step 4 UPDATE invoice error:', JSON.stringify(invErr))
+    throw new Error(`Error updating invoice total: ${invErr.message}`)
+  }
 
   revalidatePath('/billing')
   revalidatePath(`/billing/${line.invoice_id}`)
