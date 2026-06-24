@@ -36,7 +36,6 @@ type LineEditState = {
   onAmountChange: (val: string) => void
   onAmountSave: () => void
   onAmountCancel: () => void
-  savingLineId: string | null
   editingNoteLineId: string | null
   editingNoteValue: string
   onNoteToggle: (line: any) => void
@@ -78,7 +77,6 @@ function InvoiceSection({
           {lines.map((line: any) => {
             const isEditingAmount = editMode && lineEditState?.editingAmountLineId === line.id
             const isEditingNote = editMode && lineEditState?.editingNoteLineId === line.id
-            const isSaving = lineEditState?.savingLineId === line.id
             const hasModified = line.original_amount != null && line.original_amount !== line.amount
 
             return (
@@ -115,22 +113,17 @@ function InvoiceSection({
                           onClick={() => lineEditState.onAmountClick(line)}
                           className="text-right hover:text-blue-600 transition-colors"
                           title="Clic para editar importe"
-                          disabled={isSaving}
                         >
-                          {isSaving ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin inline" />
-                          ) : (
-                            <span className="flex items-center justify-end gap-1.5">
-                              {hasModified && (
-                                <span className="line-through text-slate-400 text-xs">
-                                  {formatCurrency(line.original_amount)}
-                                </span>
-                              )}
-                              <span className={hasModified ? 'text-amber-600 font-semibold' : ''}>
-                                {formatCurrency(line.amount)}
+                          <span className="flex items-center justify-end gap-1.5">
+                            {hasModified && (
+                              <span className="line-through text-slate-400 text-xs">
+                                {formatCurrency(line.original_amount)}
                               </span>
+                            )}
+                            <span className={hasModified ? 'text-amber-600 font-semibold' : ''}>
+                              {formatCurrency(line.amount)}
                             </span>
-                          )}
+                          </span>
                         </button>
                       )
                     ) : (
@@ -240,7 +233,6 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
   // ── Inline amount editing ────────────────────────────────────────────────
   const [editingAmountLineId, setEditingAmountLineId] = useState<string | null>(null)
   const [editingAmountValue, setEditingAmountValue] = useState('')
-  const [savingLineId, setSavingLineId] = useState<string | null>(null)
 
   // ── Inline note editing ──────────────────────────────────────────────────
   const [editingNoteLineId, setEditingNoteLineId] = useState<string | null>(null)
@@ -268,20 +260,31 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
     const line = editLines.find((l) => l.id === lineId)
     if (!line || newAmount === line.amount) return
 
-    setSavingLineId(lineId)
+    // Snapshot for rollback
+    const oldAmount = line.amount
+    const oldOriginalAmount = line.original_amount ?? null
+
+    // Optimistic update — state changes immediately, UI reflects new value at once
+    setEditLines((prev) =>
+      prev.map((l) =>
+        l.id === lineId
+          ? { ...l, amount: newAmount, original_amount: l.original_amount ?? l.amount }
+          : l
+      )
+    )
+
     try {
       await updateInvoiceLine(lineId, { amount: newAmount })
+    } catch {
+      // Revert to previous values on failure
       setEditLines((prev) =>
         prev.map((l) =>
           l.id === lineId
-            ? { ...l, amount: newAmount, original_amount: l.original_amount ?? l.amount }
+            ? { ...l, amount: oldAmount, original_amount: oldOriginalAmount }
             : l
         )
       )
-    } catch {
       toast.error('Error al guardar el importe')
-    } finally {
-      setSavingLineId(null)
     }
   }
 
@@ -338,7 +341,6 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
     onAmountChange: setEditingAmountValue,
     onAmountSave: handleAmountSave,
     onAmountCancel: handleAmountCancel,
-    savingLineId,
     editingNoteLineId,
     editingNoteValue,
     onNoteToggle: handleNoteToggle,
@@ -706,7 +708,6 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
                   {displayLines.map((line: any) => {
                     const isEditingAmount = editMode && editingAmountLineId === line.id
                     const isEditingNote = editMode && editingNoteLineId === line.id
-                    const isSaving = savingLineId === line.id
                     const hasModified = line.original_amount != null && line.original_amount !== line.amount
 
                     return (
@@ -739,22 +740,17 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
                                   onClick={() => handleAmountClick(line)}
                                   className="text-right hover:text-blue-600 transition-colors"
                                   title="Clic para editar importe"
-                                  disabled={isSaving}
                                 >
-                                  {isSaving ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin inline" />
-                                  ) : (
-                                    <span className="flex items-center justify-end gap-1.5">
-                                      {hasModified && (
-                                        <span className="line-through text-slate-400 text-xs">
-                                          {formatCurrency(line.original_amount)}
-                                        </span>
-                                      )}
-                                      <span className={hasModified ? 'text-amber-600 font-semibold' : ''}>
-                                        {formatCurrency(line.amount)}
+                                  <span className="flex items-center justify-end gap-1.5">
+                                    {hasModified && (
+                                      <span className="line-through text-slate-400 text-xs">
+                                        {formatCurrency(line.original_amount)}
                                       </span>
+                                    )}
+                                    <span className={hasModified ? 'text-amber-600 font-semibold' : ''}>
+                                      {formatCurrency(line.amount)}
                                     </span>
-                                  )}
+                                  </span>
                                 </button>
                               )
                             ) : (
