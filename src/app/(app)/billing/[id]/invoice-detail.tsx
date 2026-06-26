@@ -4,7 +4,7 @@ import { useState, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
-import { ArrowLeft, Download, CheckCircle, Send, Loader2, Banknote, Building2, Pencil, Trash2, Save, X, AlertCircle, StickyNote } from 'lucide-react'
+import { ArrowLeft, Download, CheckCircle, Send, Loader2, Banknote, Building2, Pencil, Trash2, Save, X, AlertCircle, StickyNote, Undo2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,7 +26,7 @@ import {
   getStatusBadgeColor,
   getStatusLabel,
 } from '@/lib/utils'
-import { updateInvoiceStatus, updateClientBankAccount, updateInvoiceLines, updateInvoiceAdjustment, updateInvoiceLine } from '@/lib/actions/billing'
+import { updateInvoiceStatus, updateClientBankAccount, updateInvoiceLines, updateInvoiceAdjustment, updateInvoiceLine, revertInvoiceStatus } from '@/lib/actions/billing'
 
 // ── Line edit state ────────────────────────────────────────────────────────
 type LineEditState = {
@@ -217,6 +217,7 @@ function InvoiceSection({
 export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any; backUrl?: string }) {
   const router = useRouter()
   const [updating, setUpdating] = useState(false)
+  const [showRevertModal, setShowRevertModal] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'transferencia'>('efectivo')
   const [paymentReference, setPaymentReference] = useState('')
@@ -445,6 +446,21 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
     }
   }
 
+  const handleRevert = async () => {
+    const to = invoice.status === 'paid' ? 'sent' : 'draft'
+    setUpdating(true)
+    try {
+      await revertInvoiceStatus(invoice.id, to)
+      toast.success(to === 'draft' ? 'Factura revertida a borrador' : 'Pago revertido, factura en estado Enviada')
+      router.refresh()
+      setShowRevertModal(false)
+    } catch {
+      toast.error('Error al revertir')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   const handleSaveBankAccount = async () => {
     if (!bankIban.trim() || !invoice.clients?.id) return
     setSavingBank(true)
@@ -544,6 +560,18 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
                 <CheckCircle className="h-4 w-4" />
               )}
               Marcar pagada
+            </Button>
+          )}
+          {!editMode && (invoice.status === 'sent' || invoice.status === 'paid') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs text-slate-400 hover:text-slate-600 gap-1"
+              onClick={() => setShowRevertModal(true)}
+              disabled={updating}
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              Revertir
             </Button>
           )}
         </div>
@@ -981,6 +1009,32 @@ export function InvoiceDetail({ invoice, backUrl = '/billing' }: { invoice: any;
           #invoice-print .text-\\[\\#2563EB\\] { color: #1d4ed8 !important; }
         }
       `}</style>
+
+      {/* Revert status modal */}
+      <Dialog open={showRevertModal} onOpenChange={(o) => { if (!o && !updating) setShowRevertModal(false) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Undo2 className="h-5 w-5 text-slate-500" />
+              {invoice.status === 'paid' ? 'Revertir pago' : 'Revertir a borrador'}
+            </DialogTitle>
+            <DialogDescription>
+              {invoice.status === 'paid'
+                ? '¿Revertir el pago de esta factura? Se eliminará el registro de pago y volverá a estado "Enviada".'
+                : '¿Revertir esta factura a borrador? Se perderá la fecha de envío.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowRevertModal(false)} disabled={updating}>
+              Cancelar
+            </Button>
+            <Button variant="secondary" onClick={handleRevert} disabled={updating}>
+              {updating && <Loader2 className="h-4 w-4 animate-spin" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Bank account modal */}
       <Dialog open={showBankModal} onOpenChange={(o) => !o && setShowBankModal(false)}>
