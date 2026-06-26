@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Loader2, ChevronRight, Trash2, PlusCircle, AlertTriangle, ArrowUpDown, Search, X, MoreHorizontal, Undo2 } from 'lucide-react'
+import { Plus, Loader2, ChevronRight, Trash2, PlusCircle, AlertTriangle, ArrowUpDown, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -18,7 +18,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { formatCurrency, getStatusBadgeColor, getStatusLabel, getMonthName, FIXED_GROUP_RATES } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
-import { generateMonthlyInvoices, deleteInvoice, deleteManyInvoices, updateClientBankAccount, revertInvoiceStatus } from '@/lib/actions/billing'
+import { generateMonthlyInvoices, deleteInvoice, deleteManyInvoices, updateClientBankAccount } from '@/lib/actions/billing'
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: getMonthName(i + 1) }))
 const YEARS = Array.from({ length: 5 }, (_, i) => {
@@ -115,18 +115,6 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
   const [bankModalClientId, setBankModalClientId] = useState<string | null>(null)
   const [bankIban, setBankIban] = useState('')
   const [savingBank, setSavingBank] = useState(false)
-
-  // ── Row actions menu (three dots) ────────────────────────────────────────
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
-  const [revertTarget, setRevertTarget] = useState<{ id: string; to: 'draft' | 'sent' } | null>(null)
-  const [reverting, setReverting] = useState(false)
-
-  useEffect(() => {
-    if (menuOpenId === null) return
-    const close = () => setMenuOpenId(null)
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
-  }, [menuOpenId])
 
   const filtered = useMemo(() => {
     const buscarLower = buscar.trim().toLowerCase()
@@ -271,21 +259,6 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
       toast.error(err.message || 'Error al guardar la cuenta')
     } finally {
       setSavingBank(false)
-    }
-  }
-
-  const handleRevert = async () => {
-    if (!revertTarget) return
-    setReverting(true)
-    try {
-      await revertInvoiceStatus(revertTarget.id, revertTarget.to)
-      toast.success(revertTarget.to === 'draft' ? 'Factura revertida a borrador' : 'Pago revertido')
-      setRevertTarget(null)
-      router.refresh()
-    } catch {
-      toast.error('Error al revertir')
-    } finally {
-      setReverting(false)
     }
   }
 
@@ -478,20 +451,6 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                       </div>
                     </button>
                   </div>
-                  {(inv.status === 'sent' || inv.status === 'paid') && (
-                    <div className="border-t border-[#F1F5F9] px-4 py-2 flex justify-end">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setRevertTarget({ id: inv.id, to: inv.status === 'paid' ? 'sent' : 'draft' })
-                        }}
-                        className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                      >
-                        <Undo2 className="h-3.5 w-3.5" />
-                        {inv.status === 'paid' ? 'Revertir pago' : 'Revertir a borrador'}
-                      </button>
-                    </div>
-                  )}
                 </div>
               )
             })
@@ -588,46 +547,7 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
                           {formatCurrency(inv.total_amount)}
                         </td>
                         <td className="px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-1">
-                            {(inv.status === 'sent' || inv.status === 'paid') && (
-                              <div className="relative">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setMenuOpenId(menuOpenId === inv.id ? null : inv.id)
-                                  }}
-                                  className="p-1.5 text-slate-300 hover:text-slate-600 transition-colors"
-                                  title="Más opciones"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </button>
-                                {menuOpenId === inv.id && (
-                                  <div
-                                    className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-[#E2E8F0] bg-white py-1 shadow-lg"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {inv.status === 'sent' && (
-                                      <button
-                                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-                                        onClick={() => { setMenuOpenId(null); setRevertTarget({ id: inv.id, to: 'draft' }) }}
-                                      >
-                                        <Undo2 className="h-3.5 w-3.5 text-slate-400" />
-                                        Revertir a borrador
-                                      </button>
-                                    )}
-                                    {inv.status === 'paid' && (
-                                      <button
-                                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-                                        onClick={() => { setMenuOpenId(null); setRevertTarget({ id: inv.id, to: 'sent' }) }}
-                                      >
-                                        <Undo2 className="h-3.5 w-3.5 text-slate-400" />
-                                        Revertir pago
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={(e) => handleDeleteSingle(inv.id, e)}
                               disabled={deletingId === inv.id}
@@ -747,32 +667,6 @@ export function BillingClient({ initialInvoices }: { initialInvoices: any[] }) {
             <Button onClick={handleSaveBankAccount} disabled={savingBank || !bankIban.trim()}>
               {savingBank && <Loader2 className="h-4 w-4 animate-spin" />}
               Guardar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Revert confirmation modal ── */}
-      <Dialog open={revertTarget !== null} onOpenChange={(o) => { if (!o && !reverting) setRevertTarget(null) }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Undo2 className="h-5 w-5 text-slate-500" />
-              {revertTarget?.to === 'draft' ? 'Revertir a borrador' : 'Revertir pago'}
-            </DialogTitle>
-            <DialogDescription>
-              {revertTarget?.to === 'draft'
-                ? '¿Revertir esta factura a borrador? Se perderá la fecha de envío.'
-                : '¿Revertir el pago de esta factura? Se eliminará el registro de pago y volverá a estado "Enviada".'}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setRevertTarget(null)} disabled={reverting}>
-              Cancelar
-            </Button>
-            <Button variant="secondary" onClick={handleRevert} disabled={reverting}>
-              {reverting && <Loader2 className="h-4 w-4 animate-spin" />}
-              Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>

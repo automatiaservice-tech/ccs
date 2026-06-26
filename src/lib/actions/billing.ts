@@ -408,24 +408,6 @@ export async function updateInvoiceStatus(
   revalidatePath(`/billing/${id}`)
 }
 
-/**
- * Revert an invoice status backwards:
- *   paid  → sent  (clears payment fields)
- *   sent  → draft
- */
-export async function revertInvoiceStatus(id: string, to: 'draft' | 'sent') {
-  const supabase = await createClient()
-  const updates: Record<string, unknown> = { status: to }
-  if (to === 'sent') {
-    updates.payment_method = null
-    updates.payment_reference = null
-  }
-  const { error } = await supabase.from('invoices').update(updates).eq('id', id)
-  if (error) throw new Error(`Error reverting invoice status: ${error.message}`)
-  revalidatePath('/billing')
-  revalidatePath(`/billing/${id}`)
-}
-
 // ── Safety pre-check ──────────────────────────────────────────────────────
 // Verifica que los IDs pertenecen a facturas reales antes de borrar.
 // NUNCA toca session_clients, clients, attendance_records ni ninguna otra tabla.
