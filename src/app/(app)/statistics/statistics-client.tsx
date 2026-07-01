@@ -100,6 +100,7 @@ interface PaymentClient {
   date: string | null
   month: number
   year: number
+  iban4?: string | null
 }
 
 interface PaymentStats {
@@ -631,10 +632,17 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 shrink-0">
                   <Banknote className="h-5 w-5 text-green-600" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Cobrado en efectivo este mes</p>
                   <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(localStats.cashTotal)}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { setPaymentModal('efectivo'); setConfirmingPayment(null) }}
+                  className="text-xs text-blue-500 underline shrink-0"
+                >
+                  Ver lista
+                </button>
               </CardContent>
             </Card>
             <Card>
@@ -642,10 +650,17 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 shrink-0">
                   <Building2 className="h-5 w-5 text-blue-600" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Cobrado por transferencia este mes</p>
                   <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(localStats.transferTotal)}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { setPaymentModal('transferencia'); setConfirmingPayment(null) }}
+                  className="text-xs text-blue-500 underline shrink-0"
+                >
+                  Ver lista
+                </button>
               </CardContent>
             </Card>
             <Card>
@@ -653,10 +668,17 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 shrink-0">
                   <Clock className="h-5 w-5 text-amber-600" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide">Pendiente de cobro este mes</p>
                   <p className="text-xl font-bold text-[#0F172A] mt-0.5">{formatCurrency(localStats.pendingTotal)}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { setPaymentModal('pendiente'); setConfirmingPayment(null) }}
+                  className="text-xs text-blue-500 underline shrink-0"
+                >
+                  Ver lista
+                </button>
               </CardContent>
             </Card>
           </div>
@@ -729,7 +751,18 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
                         <div className="flex items-center gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-[#0F172A] truncate">{c.name}</p>
-                            <p className="text-xs text-[#64748B] mt-0.5">{getMonthName(c.month)} {c.year}</p>
+                            {paymentModal === 'pendiente' ? (
+                              <p className="text-xs text-[#64748B] mt-0.5">{getMonthName(c.month)} {c.year}</p>
+                            ) : (
+                              <p className="text-xs text-[#64748B] mt-0.5">
+                                {c.date
+                                  ? new Date(c.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                  : `${getMonthName(c.month)} ${c.year}`}
+                                {paymentModal === 'transferencia' && c.iban4 && (
+                                  <span className="ml-2 text-slate-400">·· {c.iban4}</span>
+                                )}
+                              </p>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             <span className="text-sm font-semibold text-[#0F172A]">{formatCurrency(c.amount)}</span>

@@ -259,7 +259,7 @@ export async function getPaymentMethodStats() {
 
   const { data: invoices } = await supabase
     .from('invoices')
-    .select('id, total_amount, status, payment_method, month, year, created_at, clients(id, name)')
+    .select('id, total_amount, status, payment_method, month, year, created_at, clients(id, name, bank_account)')
 
   const all = invoices || []
 
@@ -275,14 +275,19 @@ export async function getPaymentMethodStats() {
   const pendingTotal = thisMonth(pending).reduce((s, i) => s + i.total_amount, 0)
 
   const toClients = (arr: typeof all) =>
-    arr.map((i) => ({
-      id: i.id,
-      name: (i.clients as any)?.name ?? '—',
-      amount: i.total_amount,
-      date: i.created_at,
-      month: i.month,
-      year: i.year,
-    }))
+    arr.map((i) => {
+      const client = i.clients as any
+      const bankAccount: string = client?.bank_account ?? ''
+      return {
+        id: i.id,
+        name: client?.name ?? '—',
+        amount: i.total_amount,
+        date: i.created_at,
+        month: i.month,
+        year: i.year,
+        iban4: bankAccount.length >= 4 ? bankAccount.slice(-4) : null,
+      }
+    })
 
   return {
     donut: [
