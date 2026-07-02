@@ -270,8 +270,25 @@ export async function getPaymentMethodStats() {
   const thisMonth = (arr: typeof all) =>
     arr.filter((i) => i.month === month && i.year === year)
 
-  const cashTotal = thisMonth(paidCash).reduce((s, i) => s + i.total_amount, 0)
-  const transferTotal = thisMonth(paidTransfer).reduce((s, i) => s + i.total_amount, 0)
+  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`
+  const monthEnd = new Date(year, month, 0).toISOString().split('T')[0]
+
+  // Cobros extraordinarios del mes
+  const { data: extraPayments } = await (supabase as any)
+    .from('extraordinary_payments')
+    .select('amount, payment_method')
+    .gte('date', monthStart)
+    .lte('date', monthEnd)
+
+  const extraCash = (extraPayments || [])
+    .filter((e: any) => e.payment_method === 'efectivo')
+    .reduce((s: number, e: any) => s + (e.amount || 0), 0)
+  const extraTransfer = (extraPayments || [])
+    .filter((e: any) => e.payment_method === 'transferencia')
+    .reduce((s: number, e: any) => s + (e.amount || 0), 0)
+
+  const cashTotal = thisMonth(paidCash).reduce((s, i) => s + i.total_amount, 0) + extraCash
+  const transferTotal = thisMonth(paidTransfer).reduce((s, i) => s + i.total_amount, 0) + extraTransfer
   const pendingTotal = thisMonth(pending).reduce((s, i) => s + i.total_amount, 0)
 
   const toClients = (arr: typeof all) =>

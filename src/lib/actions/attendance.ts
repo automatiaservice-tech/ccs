@@ -99,12 +99,21 @@ export async function getDashboardStats() {
     .eq('year', year)
     .eq('status', 'paid')
 
-  const monthlyIncome =
-    invoicesData?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0
-
-  // Total gastos del mes
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate = new Date(year, month, 0).toISOString().split('T')[0]
+
+  // Cobros extraordinarios del mes
+  const { data: extraData } = await (supabase as any)
+    .from('extraordinary_payments')
+    .select('amount')
+    .gte('date', startDate)
+    .lte('date', endDate)
+
+  const invoiceIncome = invoicesData?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0
+  const extraIncome = (extraData || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0)
+  const monthlyIncome = invoiceIncome + extraIncome
+
+  // Total gastos del mes
   const { data: expensesData } = await supabase
     .from('expenses')
     .select('amount')
