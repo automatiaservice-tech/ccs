@@ -35,7 +35,10 @@ export async function createExtraPayment(payload: {
   const { error } = await (supabase as any)
     .from('extraordinary_payments')
     .insert(payload)
-  if (error) throw error
+  if (error) {
+    console.error('Error inserting extraordinary_payment:', JSON.stringify(error))
+    throw error
+  }
   revalidatePath('/extras')
   revalidatePath('/dashboard')
   revalidatePath('/statistics')

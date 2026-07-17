@@ -171,8 +171,10 @@ export function ExtrasClient({ initialPayments }: Props) {
           toast.success('Cobro guardado')
         }
         closeModal()
-      } catch {
-        toast.error('Error al guardar el cobro')
+      } catch (err: unknown) {
+        const msg = (err as { message?: string })?.message ?? String(err)
+        console.error('Error saving extra payment:', err)
+        toast.error(`Error al guardar el cobro: ${msg}`)
       }
     })
   }
