@@ -103,6 +103,13 @@ function todayDayIndex() {
   return js === 0 ? 6 : js - 1
 }
 
+// ── Active participant count ──────────────────────────────────────────────────
+// Counts session_clients whose linked client is active, matching the count
+// shown in the session detail modal (which filters against active clients only).
+function activeParticipantCount(session: Session): number {
+  return (session.session_clients || []).filter((sc) => sc.clients?.active !== false).length
+}
+
 // ── Fixed group session cost helper ───────────────────────────────────────────
 function fixedGroupSessionCost(monthlyFee: number | null | undefined, rateId?: string | null): number {
   if (rateId) return TARIFA_COSTE_SESION_BY_ID[rateId] ?? 0
@@ -112,7 +119,7 @@ function fixedGroupSessionCost(monthlyFee: number | null | undefined, rateId?: s
 
 // ── Session price display helpers ─────────────────────────────────────────────
 function SessionPriceLine({ session }: { session: Session }) {
-  const clientCount = session.session_clients?.length || 0
+  const clientCount = activeParticipantCount(session)
   if (clientCount === 0) return null
 
   if (session.session_type === 'individual') {
@@ -160,7 +167,7 @@ function DaySessionList({
   return (
     <div className="space-y-2">
       {sessions.map((s) => {
-        const clientCount = s.session_clients?.length || 0
+        const clientCount = activeParticipantCount(s)
         return (
           <button
             key={s.id}
@@ -589,7 +596,7 @@ export function WeeklySchedule({
                       <p className="text-center text-slate-400 text-xs py-4">—</p>
                     ) : (
                       daySessions.map((s) => {
-                        const clientCount = s.session_clients?.length || 0
+                        const clientCount = activeParticipantCount(s)
                         const durationHours = (s.duration_minutes ?? 60) / 60
                         return (
                           <button
