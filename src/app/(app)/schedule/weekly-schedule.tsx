@@ -685,7 +685,7 @@ export function WeeklySchedule({
               <Tabs defaultValue="participantes" className="mt-1">
                 <TabsList className="w-full">
                   <TabsTrigger value="participantes" className="flex-1">
-                    Participantes ({participantIds.length})
+                    Participantes ({currentParticipants.length})
                   </TabsTrigger>
                   <TabsTrigger value="detalles" className="flex-1">
                     Detalles
