@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Users, Pencil, Trash2, Loader2, Search, UserMinus, UserPlus, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react'
+import { Plus, Users, Pencil, Trash2, Loader2, Search, UserPlus, X, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -17,7 +17,18 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { cn, getDayName, PROFILE_TYPE_LABELS, getProfileTypeBadgeColor, getFixedGroupRateLabel, TARIFA_COSTE_SESION, TARIFA_COSTE_SESION_BY_ID } from '@/lib/utils'
+import {
+  cn,
+  getDayName,
+  PROFILE_TYPE_LABELS,
+  getProfileTypeBadgeColor,
+  getFixedGroupRateLabel,
+  TARIFA_COSTE_SESION,
+  TARIFA_COSTE_SESION_BY_ID,
+  getClientAvatarColor,
+  getClientTariffBadge,
+  getInitial,
+} from '@/lib/utils'
 import {
   createSessionAction,
   updateSessionAction,
@@ -674,7 +685,7 @@ export function WeeklySchedule({
 
       {/* ── Session Detail Modal ── */}
       <Dialog open={!!detailSession} onOpenChange={(o) => !o && setDetailSession(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           {detailSession && (
             <>
               <DialogHeader>
@@ -706,27 +717,38 @@ export function WeeklySchedule({
                       <p className="text-xs font-semibold text-[#64748B] uppercase tracking-wide mb-2">
                         Asignados ({currentParticipants.length})
                       </p>
-                      <div className="space-y-1 max-h-48 overflow-y-auto">
-                        {currentParticipants.map((client) => (
-                          <div
-                            key={client.id}
-                            className="flex items-center justify-between rounded-lg border border-[#E2E8F0] bg-slate-50 px-3 py-2"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <p className="text-sm text-slate-800 truncate">{client.name}</p>
-                              <Badge className={cn('text-[10px] px-1.5 py-0 shrink-0', getProfileTypeBadgeColor(client.profile_type))}>
-                                {SESSION_TYPE_LABELS[client.profile_type] || client.profile_type}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-64 overflow-y-auto p-0.5">
+                        {currentParticipants.map((client) => {
+                          const tariffBadge = getClientTariffBadge(client.profile_type, client.rate_id)
+                          return (
+                            <div
+                              key={client.id}
+                              className="relative flex flex-col items-center gap-1 rounded-lg border border-[#E2E8F0] bg-slate-50 px-2 py-2.5 text-center"
+                            >
+                              <button
+                                onClick={() => toggleParticipant(client.id)}
+                                className="absolute top-1 right-1 p-0.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                title="Quitar de sesión"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                              <div
+                                className={cn(
+                                  'h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0',
+                                  getClientAvatarColor(client.profile_type, client.rate_id)
+                                )}
+                              >
+                                {getInitial(client.name)}
+                              </div>
+                              <p className="text-[11px] leading-tight text-slate-800 line-clamp-2 px-0.5" title={client.name}>
+                                {client.name}
+                              </p>
+                              <Badge className={cn('text-[9px] px-1 py-0 leading-tight', tariffBadge.colorClass)}>
+                                {tariffBadge.label}
                               </Badge>
                             </div>
-                            <button
-                              onClick={() => toggleParticipant(client.id)}
-                              className="ml-3 shrink-0 p-1 text-red-400 hover:text-red-600 transition-colors"
-                              title="Quitar de sesión"
-                            >
-                              <UserMinus className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   )}

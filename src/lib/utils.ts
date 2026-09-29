@@ -116,6 +116,50 @@ export function getRateLabelById(rateId: string | null | undefined): string {
   return FIXED_GROUP_RATES.find((r) => r.id === rateId)?.label ?? rateId
 }
 
+// ── Tariff avatar colors — used by schedule participant cards ─────────────
+const TARIFA_AVATAR_COLOR_BY_ID: Record<string, string> = {
+  tarifa_1: 'bg-sky-100 text-sky-700 border border-sky-200',        // azul claro
+  tarifa_2: 'bg-blue-200 text-blue-800 border border-blue-300',     // azul medio
+  tarifa_vip1: 'bg-purple-200 text-purple-800 border border-purple-300', // púrpura
+  tarifa_vip: 'bg-amber-200 text-amber-800 border border-amber-300',    // dorado
+  tarifa_3: 'bg-green-200 text-green-800 border border-green-300',  // verde
+  tarifa_4: 'bg-red-200 text-red-800 border border-red-300',        // rojo
+}
+
+const TARIFA_SHORT_LABEL_BY_ID: Record<string, string> = {
+  tarifa_1: 'T1',
+  tarifa_2: 'T2',
+  tarifa_vip1: 'VIP1',
+  tarifa_vip: 'VIP',
+  tarifa_3: 'T3',
+  tarifa_4: 'T4',
+}
+
+const NO_TARIFA_AVATAR_COLOR = 'bg-orange-100 text-orange-700 border border-orange-200'
+const NO_TARIFA_BADGE_COLOR = 'bg-orange-50 text-orange-600 border-orange-200'
+
+export function getClientAvatarColor(profileType: string, rateId?: string | null): string {
+  if (profileType === 'individual') return NO_TARIFA_AVATAR_COLOR
+  if (rateId && TARIFA_AVATAR_COLOR_BY_ID[rateId]) return TARIFA_AVATAR_COLOR_BY_ID[rateId]
+  return NO_TARIFA_AVATAR_COLOR
+}
+
+export function getClientTariffBadge(
+  profileType: string,
+  rateId?: string | null
+): { label: string; colorClass: string } {
+  if (profileType === 'individual') return { label: 'PERSONAL', colorClass: NO_TARIFA_BADGE_COLOR }
+  if (rateId && TARIFA_SHORT_LABEL_BY_ID[rateId]) {
+    return { label: TARIFA_SHORT_LABEL_BY_ID[rateId], colorClass: 'bg-slate-100 text-slate-600 border-slate-200' }
+  }
+  return { label: 'SIN TARIFA', colorClass: NO_TARIFA_BADGE_COLOR }
+}
+
+export function getInitial(name: string): string {
+  const trimmed = name.trim()
+  return trimmed ? trimmed[0].toUpperCase() : '?'
+}
+
 export function calculateAge(birthDate: string | Date): number {
   const today = new Date()
   const birth = new Date(birthDate)
