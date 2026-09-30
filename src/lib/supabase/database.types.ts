@@ -70,6 +70,15 @@ export interface SessionClient {
   client_id: string
 }
 
+// Tablero module — independent of session_clients/billing
+export interface BoardAssignment {
+  id: string
+  session_id: string
+  client_id: string
+  date: string
+  created_at: string
+}
+
 export interface AttendanceRecord {
   id: string
   session_id: string

@@ -160,6 +160,38 @@ export function getInitial(name: string): string {
   return trimmed ? trimmed[0].toUpperCase() : '?'
 }
 
+// ── Tablero (board) week helpers ────────────────────────────────────────────
+// Kept outside src/lib/actions/board.ts because 'use server' files may only
+// export async functions — these are plain sync helpers used by both the
+// server action module and the client component.
+export const BOARD_DAY_COUNT = 5 // Monday..Friday, our convention 0=Mon..4=Fri
+
+function isoDate(d: Date): string {
+  return d.toISOString().split('T')[0]
+}
+
+export function getCurrentWeekWeekdays(): string[] {
+  const now = new Date()
+  const jsDay = now.getDay() // 0=Sun..6=Sat
+  const mondayOffset = jsDay === 0 ? -6 : 1 - jsDay
+  const monday = new Date(now)
+  monday.setDate(now.getDate() + mondayOffset)
+
+  const dates: string[] = []
+  for (let i = 0; i < BOARD_DAY_COUNT; i++) {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    dates.push(isoDate(d))
+  }
+  return dates
+}
+
+export function defaultBoardDayIndex(): number {
+  const jsDay = new Date().getDay() // 0=Sun..6=Sat
+  const ourDay = jsDay === 0 ? 6 : jsDay - 1 // 0=Mon..6=Sun
+  return ourDay > 4 ? 0 : ourDay
+}
+
 export function calculateAge(birthDate: string | Date): number {
   const today = new Date()
   const birth = new Date(birthDate)
