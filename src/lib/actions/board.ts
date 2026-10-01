@@ -55,6 +55,7 @@ async function seedMissingDates(
 export async function getBoardWeek(): Promise<BoardWeekData> {
   const supabase = await createClient()
   const dates = getCurrentWeekWeekdays()
+  console.log('[board] getBoardWeek → dates for this week:', dates)
 
   const { data: sessions, error: sessErr } = await supabase
     .from('sessions')
@@ -76,8 +77,14 @@ export async function getBoardWeek(): Promise<BoardWeekData> {
 
   if (asgErr) throw new Error(`Error cargando el tablero: ${asgErr.message}`)
 
+  console.log('[board] getBoardWeek ← existing board_assignments for these dates:', existing)
+
   const existingDates = new Set<string>((existing || []).map((a: any) => a.date as string))
   const seeded = await seedMissingDates(supabase, sessionIds, dates, existingDates)
+
+  if (seeded.length > 0) {
+    console.log('[board] getBoardWeek → seeded from session_clients for dates with no rows yet:', seeded)
+  }
 
   return {
     dates,
@@ -95,6 +102,7 @@ export async function moveBoardParticipant(
 ) {
   if (fromSessionId === toSessionId) return
   const supabase = await createClient()
+  console.log('[board] moveBoardParticipant:', { date, fromSessionId, toSessionId, clientId })
 
   const { error: delErr } = await (supabase as any)
     .from('board_assignments')
@@ -105,12 +113,15 @@ export async function moveBoardParticipant(
 
   if (delErr) throw new Error(`Error moviendo participante: ${delErr.message}`)
 
-  const { error: insErr } = await (supabase as any)
+  const { data, error: insErr } = await (supabase as any)
     .from('board_assignments')
     .upsert(
       { session_id: toSessionId, client_id: clientId, date },
       { onConflict: 'session_id,client_id,date' }
     )
+    .select()
+
+  console.log('[board] moveBoardParticipant ← result:', { data, error: insErr ? JSON.stringify(insErr) : null })
 
   if (insErr) throw new Error(`Error moviendo participante: ${insErr.message}`)
   revalidatePath('/board')
@@ -118,12 +129,17 @@ export async function moveBoardParticipant(
 
 export async function addBoardParticipant(date: string, sessionId: string, clientId: string) {
   const supabase = await createClient()
-  const { error } = await (supabase as any)
+  console.log('[board] addBoardParticipant → upsert:', { session_id: sessionId, client_id: clientId, date })
+
+  const { data, error } = await (supabase as any)
     .from('board_assignments')
     .upsert(
       { session_id: sessionId, client_id: clientId, date },
       { onConflict: 'session_id,client_id,date' }
     )
+    .select()
+
+  console.log('[board] addBoardParticipant ← result:', { data, error: error ? JSON.stringify(error) : null })
 
   if (error) throw new Error(`Error añadiendo participante: ${error.message}`)
   revalidatePath('/board')
