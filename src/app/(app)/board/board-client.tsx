@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Plus, X, Search, RotateCcw, Loader2, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -167,6 +168,7 @@ export function BoardClient({
   allClients: Client[]
   defaultDayIndex: number
 }) {
+  const router = useRouter()
   const [activeDay, setActiveDay] = useState(defaultDayIndex)
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments)
   const [draggingKey, setDraggingKey] = useState<string | null>(null)
@@ -242,6 +244,7 @@ export function BoardClient({
 
     try {
       await moveBoardParticipant(activeDate, fromSessionId, toSessionId, clientId)
+      router.refresh()
     } catch (err: any) {
       toast.error(err?.message || 'Error al mover el participante')
       setAssignments((prev) => [
@@ -258,6 +261,7 @@ export function BoardClient({
     pulse(sessionId, clientId)
     try {
       await addBoardParticipant(activeDate, sessionId, clientId)
+      router.refresh()
     } catch (err: any) {
       toast.error(err?.message || 'Error al añadir participante')
       setAssignments((prev) =>
@@ -275,6 +279,7 @@ export function BoardClient({
     )
     try {
       await removeBoardParticipant(activeDate, sessionId, clientId)
+      router.refresh()
     } catch (err: any) {
       toast.error(err?.message || 'Error al quitar participante')
       if (removed) setAssignments((prev) => [...prev, removed])
