@@ -20,6 +20,36 @@ export interface BoardWeekData {
   assignments: Pick<BoardAssignment, 'session_id' | 'client_id' | 'date'>[]
 }
 
+// ── Fetch ALL board_assignments rows matching `dates`, paginating past
+// PostgREST's default max-rows cap (1000) instead of silently truncating —
+// this is the actual root cause of participants "disappearing": the table
+// now holds ~1000+ rows across 5 dates × many sessions, and a plain select
+// without pagination was getting cut off before reaching recently-added rows.
+async function fetchAllBoardAssignments(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  dates: string[]
+): Promise<Pick<BoardAssignment, 'session_id' | 'client_id' | 'date'>[]> {
+  const pageSize = 1000
+  const all: Pick<BoardAssignment, 'session_id' | 'client_id' | 'date'>[] = []
+  let from = 0
+
+  while (true) {
+    const { data, error } = await (supabase as any)
+      .from('board_assignments')
+      .select('session_id, client_id, date')
+      .in('date', dates)
+      .range(from, from + pageSize - 1)
+
+    if (error) throw new Error(`Error cargando el tablero: ${error.message}`)
+
+    all.push(...(data || []))
+    if (!data || data.length < pageSize) break
+    from += pageSize
+  }
+
+  return all
+}
+
 // ── Seed board_assignments for a set of dates from current session_clients,
 // but only for dates that have no rows yet at all ──────────────────────────
 async function seedMissingDates(
@@ -55,7 +85,6 @@ async function seedMissingDates(
 export async function getBoardWeek(): Promise<BoardWeekData> {
   const supabase = await createClient()
   const dates = getCurrentWeekWeekdays()
-  console.log('[board] getBoardWeek → dates for this week:', dates)
 
   const { data: sessions, error: sessErr } = await supabase
     .from('sessions')
@@ -68,28 +97,21 @@ export async function getBoardWeek(): Promise<BoardWeekData> {
 
   const sessionIds = (sessions || []).map((s) => s.id)
 
-  const { data: existing, error: asgErr } = sessionIds.length
-    ? await (supabase as any)
-        .from('board_assignments')
-        .select('session_id, client_id, date')
-        .in('date', dates)
-    : { data: [], error: null }
+  const existing = sessionIds.length ? await fetchAllBoardAssignments(supabase, dates) : []
 
-  if (asgErr) throw new Error(`Error cargando el tablero: ${asgErr.message}`)
+  console.log('[board] getBoardWeek:', { dates, existingCount: existing.length })
 
-  console.log('[board] getBoardWeek ← existing board_assignments for these dates:', existing)
-
-  const existingDates = new Set<string>((existing || []).map((a: any) => a.date as string))
+  const existingDates = new Set<string>(existing.map((a) => a.date))
   const seeded = await seedMissingDates(supabase, sessionIds, dates, existingDates)
 
   if (seeded.length > 0) {
-    console.log('[board] getBoardWeek → seeded from session_clients for dates with no rows yet:', seeded)
+    console.log('[board] getBoardWeek → seeded count:', seeded.length)
   }
 
   return {
     dates,
     sessions: (sessions as Session[]) || [],
-    assignments: [...(existing || []), ...seeded],
+    assignments: [...existing, ...seeded],
   }
 }
 
