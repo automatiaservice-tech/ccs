@@ -45,6 +45,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
     name: '',
     phone: '',
     email: '',
+    location: '',
     profile_type: '' as any,
     monthly_fee: '',
     rate_id: '',
@@ -85,6 +86,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
         name: formData.name,
         phone: formData.phone,
         email: formData.email,
+        location: formData.location || undefined,
         profile_type: formData.profile_type,
         monthly_fee: formData.monthly_fee ? parseFloat(formData.monthly_fee) : undefined,
         rate_id: formData.rate_id || undefined,
@@ -111,6 +113,7 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
       name: '',
       phone: '',
       email: '',
+      location: '',
       profile_type: '' as any,
       monthly_fee: '',
       rate_id: '',
@@ -298,6 +301,16 @@ export function NewClientModal({ open, onClose }: NewClientModalProps) {
                 value={formData.email}
                 onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
                 placeholder="juan@email.com"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="location">Localidad</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData((p) => ({ ...p, location: e.target.value }))}
+                placeholder="Alcoy"
               />
             </div>
 

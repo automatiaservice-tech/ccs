@@ -10,6 +10,7 @@ export interface Client {
   name: string
   phone: string | null
   email: string | null
+  location: string | null
   profile_type: ProfileType
   monthly_fee: number | null
   rate_id: string | null

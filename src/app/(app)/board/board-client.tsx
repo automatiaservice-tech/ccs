@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, X, Search, RotateCcw, Loader2 } from 'lucide-react'
+import { Plus, X, Search, RotateCcw, Loader2, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
@@ -358,8 +358,17 @@ export function BoardClient({
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{session.name}</p>
-                    <p className="text-xs text-[#64748B]">{session.time.substring(0, 5)}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-slate-900">{session.name}</p>
+                      <span
+                        className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 shrink-0"
+                        title="Participantes en esta sesión"
+                      >
+                        <Users className="h-3 w-3" />
+                        {participants.length}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#64748B] mt-0.5">{session.time.substring(0, 5)}</p>
                   </div>
                   <Badge className={cn('text-[10px] px-1.5 py-0 shrink-0', SESSION_TYPE_BADGE[session.session_type])}>
                     {PROFILE_TYPE_LABELS[session.session_type] || session.session_type}

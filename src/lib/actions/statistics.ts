@@ -321,6 +321,46 @@ export async function getPaymentMethodStats() {
   }
 }
 
+// ── Geographic distribution of active clients ───────────────────────────────
+export async function getClientLocationStats() {
+  const supabase = await createClient()
+
+  const { data: clients, error } = await supabase
+    .from('clients')
+    .select('location')
+    .eq('active', true)
+
+  if (error) throw error
+
+  const all = clients || []
+  const counts: Record<string, number> = {}
+  let withLocation = 0
+
+  for (const c of all) {
+    const loc = (c.location || '').trim()
+    if (loc) {
+      counts[loc] = (counts[loc] || 0) + 1
+      withLocation++
+    } else {
+      counts['Sin especificar'] = (counts['Sin especificar'] || 0) + 1
+    }
+  }
+
+  const distribution = Object.entries(counts)
+    .map(([location, count]) => ({ location, count }))
+    .sort((a, b) => b.count - a.count)
+
+  const namedDistribution = distribution.filter((d) => d.location !== 'Sin especificar')
+
+  return {
+    distribution,
+    topLocation: namedDistribution[0]?.location ?? null,
+    distinctLocations: namedDistribution.length,
+    pctWithLocation: all.length > 0 ? Math.round((withLocation / all.length) * 100) : 0,
+    total: all.length,
+  }
+}
+
 // ── Dashboard quick stats ────────────────────────────────────────────────────
 export async function getQuickStats() {
   const supabase = await createClient()

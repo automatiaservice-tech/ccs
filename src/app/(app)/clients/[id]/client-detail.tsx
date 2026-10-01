@@ -85,6 +85,7 @@ export function ClientDetail({ client, attendance, invoices, backUrl = '/clients
     name: client.name,
     phone: client.phone || '',
     email: client.email || '',
+    location: client.location || '',
     monthly_fee: client.monthly_fee?.toString() || '',
     rate_id: client.rate_id || '',
     notes: client.notes || '',
@@ -121,6 +122,7 @@ export function ClientDetail({ client, attendance, invoices, backUrl = '/clients
         name: form.name,
         phone: form.phone || null,
         email: form.email || null,
+        location: form.location || null,
         profile_type: form.profile_type,
         monthly_fee: monthlyFee,
         rate_id: form.rate_id || null,
@@ -276,6 +278,14 @@ export function ClientDetail({ client, attendance, invoices, backUrl = '/clients
                     value={form.email}
                     onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
                     placeholder="email@ejemplo.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Localidad</Label>
+                  <Input
+                    value={form.location}
+                    onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}
+                    placeholder="Alcoy"
                   />
                 </div>
                 <div className="space-y-1.5">

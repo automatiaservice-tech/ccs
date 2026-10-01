@@ -18,7 +18,7 @@ import {
   Cell,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, TrendingUp, Calendar, Star, Euro, Banknote, Building2, Clock, X, Loader2 } from 'lucide-react'
+import { Users, TrendingUp, Calendar, Star, Euro, Banknote, Building2, Clock, X, Loader2, MapPin, Globe } from 'lucide-react'
 import { formatCurrency, getMonthName } from '@/lib/utils'
 import { toast } from 'sonner'
 import { updateInvoiceStatus } from '@/lib/actions/billing'
@@ -138,11 +138,18 @@ interface Props {
     topRate: RateItem
   }
   paymentStats: PaymentStats
+  locationStats: {
+    distribution: { location: string; count: number }[]
+    topLocation: string | null
+    distinctLocations: number
+    pctWithLocation: number
+    total: number
+  }
 }
 
 const RATE_COLORS = ['#93c5fd', '#3b82f6', '#7c3aed', '#1d4ed8', '#4338ca']
 
-export function StatisticsClient({ clientStats, attendanceStats, revenueStats, rateStats, paymentStats }: Props) {
+export function StatisticsClient({ clientStats, attendanceStats, revenueStats, rateStats, paymentStats, locationStats }: Props) {
   const [paymentModal, setPaymentModal] = useState<'efectivo' | 'transferencia' | 'pendiente' | null>(null)
 
   // ── Local mutable payment state (updates without page reload) ────────────
@@ -159,6 +166,10 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
   const { weeklyAttendance, dayData, monthSessions, avgAttendees, topClientName, attendanceRate } = attendanceStats
 
   const pct = (n: number) => (totalActive > 0 ? Math.round((n / totalActive) * 100) : 0)
+
+  const topLocationCount =
+    locationStats.distribution.find((d) => d.location === locationStats.topLocation)?.count ?? null
+  const maxLocationCount = locationStats.distribution[0]?.count || 1
 
   const handleConfirmPayment = async (client: PaymentClient) => {
     if (!confirmingPayment) return
@@ -335,6 +346,108 @@ export function StatisticsClient({ clientStats, attendanceStats, revenueStats, r
             </CardContent>
           </Card>
         </div>
+      </section>
+
+      {/* ══ D) LOCALIZACIÓN ══════════════════════════════════════════════════ */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-[#0F172A] border-b border-[#E2E8F0] pb-2">
+          Distribución geográfica de clientes
+        </h2>
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <StatCard
+            label="Localidad con más clientes"
+            value={locationStats.topLocation ?? '—'}
+            sub={topLocationCount !== null ? `${topLocationCount} clientes` : 'Sin datos'}
+            icon={MapPin}
+            iconBg="bg-blue-50"
+            iconColor="text-blue-600"
+          />
+          <StatCard
+            label="Localidades distintas"
+            value={locationStats.distinctLocations}
+            sub="Registradas entre clientes activos"
+            icon={Globe}
+            iconBg="bg-indigo-50"
+            iconColor="text-indigo-600"
+          />
+          <StatCard
+            label="Con localidad registrada"
+            value={`${locationStats.pctWithLocation}%`}
+            sub={`${locationStats.total} clientes activos`}
+            icon={Users}
+            iconBg="bg-green-50"
+            iconColor="text-green-600"
+          />
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Clientes por localidad</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {locationStats.distribution.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-8">Sin datos de localidad</p>
+            ) : (
+              <>
+                {/* Desktop/tablet: horizontal bar chart */}
+                <div className="hidden sm:block">
+                  <ResponsiveContainer width="100%" height={Math.max(200, locationStats.distribution.length * 36)}>
+                    <BarChart
+                      data={locationStats.distribution}
+                      layout="vertical"
+                      margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis
+                        type="category"
+                        dataKey="location"
+                        width={120}
+                        tick={{ fill: '#64748b', fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null
+                          const d = payload[0].payload as { location: string; count: number }
+                          return (
+                            <div className="bg-white border border-[#E2E8F0] rounded-lg p-3 shadow-md text-xs">
+                              <p className="font-medium text-slate-700">{d.location}</p>
+                              <p className="text-slate-600 mt-1">{d.count} cliente{d.count !== 1 ? 's' : ''}</p>
+                            </div>
+                          )
+                        }}
+                        cursor={{ fill: 'rgba(226,232,240,0.4)' }}
+                      />
+                      <Bar dataKey="count" name="Clientes" fill="#2563eb" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Mobile: ordered list with inline bars */}
+                <div className="sm:hidden space-y-3">
+                  {locationStats.distribution.map((d) => (
+                    <div key={d.location}>
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-slate-700 truncate">{d.location}</span>
+                        <span className="font-semibold text-[#0F172A] shrink-0 ml-2">{d.count}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-blue-500"
+                          style={{ width: `${(d.count / maxLocationCount) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       {/* ══ B) ASISTENCIA ════════════════════════════════════════════════════ */}

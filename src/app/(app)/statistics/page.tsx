@@ -1,4 +1,4 @@
-import { getClientStats, getAttendanceStats, getRevenueByTypeStats, getFixedGroupRateStats, getPaymentMethodStats } from '@/lib/actions/statistics'
+import { getClientStats, getAttendanceStats, getRevenueByTypeStats, getFixedGroupRateStats, getPaymentMethodStats, getClientLocationStats } from '@/lib/actions/statistics'
 import { StatisticsClient } from './statistics-client'
 
 const DEFAULT_CLIENT_STATS = {
@@ -43,13 +43,22 @@ const DEFAULT_PAYMENT_STATS = {
   pendingClients: [],
 }
 
+const DEFAULT_LOCATION_STATS = {
+  distribution: [],
+  topLocation: null,
+  distinctLocations: 0,
+  pctWithLocation: 0,
+  total: 0,
+}
+
 export default async function StatisticsPage() {
-  const [clientStats, attendanceStats, revenueStats, rateStats, paymentStats] = await Promise.all([
+  const [clientStats, attendanceStats, revenueStats, rateStats, paymentStats, locationStats] = await Promise.all([
     getClientStats().catch(() => DEFAULT_CLIENT_STATS),
     getAttendanceStats().catch(() => DEFAULT_ATTENDANCE_STATS),
     getRevenueByTypeStats().catch(() => []),
     getFixedGroupRateStats().catch(() => DEFAULT_RATE_STATS),
     getPaymentMethodStats().catch(() => DEFAULT_PAYMENT_STATS),
+    getClientLocationStats().catch(() => DEFAULT_LOCATION_STATS),
   ])
 
   return (
@@ -65,6 +74,7 @@ export default async function StatisticsPage() {
         revenueStats={revenueStats}
         rateStats={rateStats}
         paymentStats={paymentStats}
+        locationStats={locationStats}
       />
     </div>
   )

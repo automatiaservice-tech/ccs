@@ -39,6 +39,7 @@ export async function createClientAction(formData: {
   name: string
   phone: string
   email: string
+  location?: string
   profile_type: ProfileType
   monthly_fee?: number
   rate_id?: string
@@ -56,6 +57,7 @@ export async function createClientAction(formData: {
       name: formData.name,
       phone: formData.phone || null,
       email: formData.email || null,
+      location: formData.location || null,
       profile_type: formData.profile_type,
       monthly_fee: formData.monthly_fee || null,
       rate_id: formData.rate_id || null,
