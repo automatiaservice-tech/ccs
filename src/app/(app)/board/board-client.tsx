@@ -22,6 +22,12 @@ import {
 } from '@/lib/actions/board'
 
 const DAY_LABELS = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE']
+const DAY_NAMES_FULL = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES']
+
+function formatHourLabel(time: string): string {
+  const [hh, mm] = time.substring(0, 5).split(':')
+  return mm === '00' ? `${hh}H` : `${hh}:${mm}`
+}
 
 const SESSION_TYPE_BADGE: Record<string, string> = {
   fixed_group: 'bg-blue-50 text-blue-600 border-blue-200',
@@ -155,6 +161,119 @@ function AddParticipantPanel({
   )
 }
 
+// ── Week-groups view: read-only, fixed_group sessions only ─────────────────
+function ReadOnlyParticipantCard({ client }: { client: Client }) {
+  const tariffBadge = getClientTariffBadge(client.profile_type, client.rate_id)
+  return (
+    <div className="flex w-20 shrink-0 flex-col items-center gap-1 rounded-lg border border-[#E2E8F0] bg-slate-50 px-2 py-2 text-center">
+      <div
+        className={cn(
+          'h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0',
+          getClientAvatarColor(client.profile_type, client.rate_id)
+        )}
+      >
+        {getInitial(client.name)}
+      </div>
+      <p className="text-[10px] leading-tight text-slate-800 line-clamp-2" title={client.name}>
+        {client.name}
+      </p>
+      <Badge className={cn('text-[8px] px-1 py-0 leading-tight', tariffBadge.colorClass)}>
+        {tariffBadge.label}
+      </Badge>
+    </div>
+  )
+}
+
+function EmptySlot() {
+  return (
+    <div className="flex h-[72px] w-20 shrink-0 flex-col items-center justify-center rounded-lg border border-dashed border-[#CBD5E1] bg-slate-50/50 text-slate-300">
+      <Plus className="h-4 w-4" />
+    </div>
+  )
+}
+
+function WeekGroupRow({
+  session,
+  participants,
+}: {
+  session: Session
+  participants: Client[]
+}) {
+  const count = participants.length
+  const capacity = session.max_capacity
+  const isFull = capacity != null && count >= capacity
+  const emptySlots = capacity != null && count < capacity ? capacity - count : 0
+
+  return (
+    <div className="flex items-stretch gap-3 rounded-lg border border-[#E2E8F0] bg-white p-2">
+      <div className="flex min-w-[76px] shrink-0 flex-col items-center justify-center rounded-lg bg-blue-50 px-2 py-2 text-blue-700">
+        <span className="text-xs font-bold whitespace-nowrap">
+          {DAY_LABELS[session.day_of_week]} {formatHourLabel(session.time)}
+        </span>
+        <span className="mt-0.5 max-w-[88px] truncate text-[10px] text-blue-500" title={session.name}>
+          {session.name}
+        </span>
+      </div>
+
+      <div className="min-w-0 flex-1 overflow-x-auto">
+        {participants.length === 0 && emptySlots === 0 ? (
+          <p className="flex h-full items-center text-xs text-slate-400 px-2">Sin participantes</p>
+        ) : (
+          <div className="flex gap-2 pb-1">
+            {participants.map((client) => (
+              <ReadOnlyParticipantCard key={client.id} client={client} />
+            ))}
+            {Array.from({ length: emptySlots }).map((_, i) => (
+              <EmptySlot key={i} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex shrink-0 flex-col items-end justify-center gap-1 pl-1">
+        <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
+          {capacity != null ? `${count}/${capacity}` : count}
+        </span>
+        {capacity != null &&
+          (isFull ? (
+            <Badge className="text-[9px] px-1.5 py-0 bg-green-50 text-green-600 border-green-200 whitespace-nowrap">
+              COMPLETO
+            </Badge>
+          ) : (
+            <Badge className="text-[9px] px-1.5 py-0 bg-orange-50 text-orange-600 border-orange-200 whitespace-nowrap">
+              {capacity - count} plazas libres
+            </Badge>
+          ))}
+      </div>
+    </div>
+  )
+}
+
+function WeekGroupsView({
+  groupsByDay,
+}: {
+  groupsByDay: { day: number; sessions: { session: Session; participants: Client[] }[] }[]
+}) {
+  if (groupsByDay.length === 0) {
+    return <p className="text-center text-slate-400 text-sm py-12">Sin sesiones de grupo fijo esta semana</p>
+  }
+
+  return (
+    <div className="space-y-6">
+      {groupsByDay.map(({ day, sessions }) => (
+        <div key={day} className="space-y-2">
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">{DAY_NAMES_FULL[day]}</h3>
+          <div className="space-y-2">
+            {sessions.map(({ session, participants }) => (
+              <WeekGroupRow key={session.id} session={session} participants={participants} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function BoardClient({
   dates,
   sessions,
@@ -169,6 +288,7 @@ export function BoardClient({
   defaultDayIndex: number
 }) {
   const router = useRouter()
+  const [viewMode, setViewMode] = useState<'day' | 'week-groups'>('day')
   const [activeDay, setActiveDay] = useState(defaultDayIndex)
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments)
   const [draggingKey, setDraggingKey] = useState<string | null>(null)
@@ -204,6 +324,33 @@ export function BoardClient({
     }
     return map
   }, [assignments, activeDate, clientsById])
+
+  // ── Week-groups view data: fixed_group sessions only, Mon-Fri, read-only ──
+  const groupsByDay = useMemo(() => {
+    if (viewMode !== 'week-groups') return []
+    const byDay: { day: number; sessions: { session: Session; participants: Client[] }[] }[] = []
+
+    for (let day = 0; day < dates.length; day++) {
+      const daySessions = sessions
+        .filter((s) => s.day_of_week === day && s.session_type === 'fixed_group')
+        .sort((a, b) => a.time.localeCompare(b.time))
+
+      if (daySessions.length === 0) continue
+
+      const date = dates[day]
+      const withParticipants = daySessions.map((session) => ({
+        session,
+        participants: assignments
+          .filter((a) => a.date === date && a.session_id === session.id)
+          .map((a) => clientsById.get(a.client_id))
+          .filter((c): c is Client => !!c),
+      }))
+
+      byDay.push({ day, sessions: withParticipants })
+    }
+
+    return byDay
+  }, [viewMode, sessions, assignments, dates, clientsById])
 
   const pulse = (sessionId: string, clientId: string) => {
     const key = `${sessionId}-${clientId}`
@@ -304,6 +451,32 @@ export function BoardClient({
 
   return (
     <div className="space-y-4">
+      {/* ── View mode toggle ─────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 border-b border-[#E2E8F0] pb-3 flex-wrap">
+        <button
+          onClick={() => setViewMode('day')}
+          className={cn(
+            'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+            viewMode === 'day' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100'
+          )}
+        >
+          📅 Vista por día
+        </button>
+        <button
+          onClick={() => setViewMode('week-groups')}
+          className={cn(
+            'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+            viewMode === 'week-groups' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100'
+          )}
+        >
+          👥 Vista grupos semana
+        </button>
+      </div>
+
+      {viewMode === 'week-groups' ? (
+        <WeekGroupsView groupsByDay={groupsByDay} />
+      ) : (
+        <>
       {/* ── Day selector ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center rounded-lg border border-[#E2E8F0] p-0.5 gap-0.5 bg-slate-50">
@@ -418,6 +591,8 @@ export function BoardClient({
             )
           })}
         </div>
+      )}
+        </>
       )}
     </div>
   )
