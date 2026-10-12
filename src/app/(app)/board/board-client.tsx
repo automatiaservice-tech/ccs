@@ -163,31 +163,29 @@ function AddParticipantPanel({
 
 // ── Week-groups view: read-only, fixed_group sessions only ─────────────────
 function ReadOnlyParticipantCard({ client }: { client: Client }) {
-  const tariffBadge = getClientTariffBadge(client.profile_type, client.rate_id)
   return (
-    <div className="flex w-20 shrink-0 flex-col items-center gap-1 rounded-lg border border-[#E2E8F0] bg-slate-50 px-2 py-2 text-center">
+    <div className="flex w-14 shrink-0 flex-col items-center gap-0.5 text-center" title={client.name}>
       <div
         className={cn(
-          'h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0',
+          'h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0',
           getClientAvatarColor(client.profile_type, client.rate_id)
         )}
       >
         {getInitial(client.name)}
       </div>
-      <p className="text-[10px] leading-tight text-slate-800 line-clamp-2" title={client.name}>
+      <p className="w-full text-[10px] leading-tight text-slate-800 line-clamp-2 break-words">
         {client.name}
       </p>
-      <Badge className={cn('text-[8px] px-1 py-0 leading-tight', tariffBadge.colorClass)}>
-        {tariffBadge.label}
-      </Badge>
     </div>
   )
 }
 
 function EmptySlot() {
   return (
-    <div className="flex h-[72px] w-20 shrink-0 flex-col items-center justify-center rounded-lg border border-dashed border-[#CBD5E1] bg-slate-50/50 text-slate-300">
-      <Plus className="h-4 w-4" />
+    <div className="flex w-14 shrink-0 justify-center">
+      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-[#CBD5E1] bg-slate-50/50 text-slate-300">
+        <Plus className="h-3 w-3" />
+      </div>
     </div>
   )
 }
@@ -215,11 +213,11 @@ function WeekGroupRow({
         </span>
       </div>
 
-      <div className="min-w-0 flex-1 overflow-x-auto">
+      <div className="min-w-0 flex-1">
         {participants.length === 0 && emptySlots === 0 ? (
           <p className="flex h-full items-center text-xs text-slate-400 px-2">Sin participantes</p>
         ) : (
-          <div className="flex gap-2 pb-1">
+          <div className="flex h-full flex-wrap content-center gap-1.5">
             {participants.map((client) => (
               <ReadOnlyParticipantCard key={client.id} client={client} />
             ))}
