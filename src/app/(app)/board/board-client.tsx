@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Plus, X, Search, RotateCcw, Loader2, Users } from 'lucide-react'
@@ -161,19 +161,85 @@ function AddParticipantPanel({
   )
 }
 
-// ── Week-groups view: read-only, fixed_group sessions only ─────────────────
-function ReadOnlyParticipantCard({ client }: { client: Client }) {
+// ── Week-groups view: fixed_group sessions only, compact editable cards ────
+function CompactParticipantCard({
+  client,
+  sessionId,
+  dragging,
+  justMoved,
+  onDragStart,
+  onDragEnd,
+  onRemove,
+}: {
+  client: Client
+  sessionId: string
+  dragging: boolean
+  justMoved: boolean
+  onDragStart: (e: React.DragEvent, clientId: string, sessionId: string) => void
+  onDragEnd: () => void
+  onRemove: (clientId: string) => void
+}) {
+  // Touch devices have no hover: a long press reveals the remove button
+  const [showRemove, setShowRemove] = useState(false)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
+  }
+
+  useEffect(() => {
+    if (!showRemove) return
+    const t = setTimeout(() => setShowRemove(false), 4000)
+    return () => clearTimeout(t)
+  }, [showRemove])
+
+  useEffect(() => cancelLongPress, [])
+
   return (
-    <div className="flex w-14 shrink-0 flex-col items-center gap-0.5 text-center" title={client.name}>
-      <div
-        className={cn(
-          'h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0',
-          getClientAvatarColor(client.profile_type, client.rate_id)
-        )}
-      >
-        {getInitial(client.name)}
+    <div
+      draggable
+      onDragStart={(e) => {
+        cancelLongPress()
+        onDragStart(e, client.id, sessionId)
+      }}
+      onDragEnd={onDragEnd}
+      onTouchStart={() => {
+        cancelLongPress()
+        longPressTimer.current = setTimeout(() => setShowRemove(true), 500)
+      }}
+      onTouchEnd={cancelLongPress}
+      onTouchMove={cancelLongPress}
+      onTouchCancel={cancelLongPress}
+      onContextMenu={(e) => e.preventDefault()}
+      className={cn(
+        'group flex w-14 shrink-0 flex-col items-center gap-0.5 text-center cursor-grab active:cursor-grabbing select-none transition-all duration-300',
+        dragging && 'opacity-30 scale-95'
+      )}
+      title={client.name}
+    >
+      <div className="relative">
+        <div
+          className={cn(
+            'h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 pointer-events-none transition-all duration-300',
+            getClientAvatarColor(client.profile_type, client.rate_id),
+            justMoved && 'ring-2 ring-blue-400 scale-110'
+          )}
+        >
+          {getInitial(client.name)}
+        </div>
+        <button
+          onClick={() => onRemove(client.id)}
+          className={cn(
+            'absolute -top-1.5 -right-2 h-4 w-4 items-center justify-center rounded-full border border-[#E2E8F0] bg-white text-slate-500 shadow-sm hover:text-red-500 hover:border-red-200 transition-colors',
+            showRemove ? 'flex' : 'hidden group-hover:flex'
+          )}
+          title="Quitar de esta sesión"
+        >
+          <X className="h-2.5 w-2.5" />
+        </button>
       </div>
-      <p className="w-full text-[10px] leading-tight text-slate-800 line-clamp-2 break-words">
+      <p className="w-full text-[10px] leading-tight text-slate-800 line-clamp-2 break-words pointer-events-none">
         {client.name}
       </p>
     </div>
@@ -190,20 +256,54 @@ function EmptySlot() {
   )
 }
 
+interface WeekGroupDndProps {
+  draggingKey: string | null
+  justMovedKey: string | null
+  dragOverSessionId: string | null
+  onDragStart: (e: React.DragEvent, clientId: string, sessionId: string) => void
+  onDragEnd: () => void
+  onDragOverSession: (sessionId: string) => void
+  onDragLeaveSession: (sessionId: string) => void
+  onDrop: (e: React.DragEvent, toSessionId: string) => void
+  onRemove: (sessionId: string, clientId: string) => void
+}
+
 function WeekGroupRow({
   session,
   participants,
+  draggingKey,
+  justMovedKey,
+  dragOverSessionId,
+  onDragStart,
+  onDragEnd,
+  onDragOverSession,
+  onDragLeaveSession,
+  onDrop,
+  onRemove,
 }: {
   session: Session
   participants: Client[]
-}) {
+} & WeekGroupDndProps) {
   const count = participants.length
   const capacity = session.max_capacity
   const isFull = capacity != null && count >= capacity
   const emptySlots = capacity != null && count < capacity ? capacity - count : 0
 
   return (
-    <div className="flex items-stretch gap-3 rounded-lg border border-[#E2E8F0] bg-white p-2">
+    <div
+      onDragOver={(e) => {
+        e.preventDefault()
+        onDragOverSession(session.id)
+      }}
+      onDragLeave={() => onDragLeaveSession(session.id)}
+      onDrop={(e) => onDrop(e, session.id)}
+      className={cn(
+        'flex items-stretch gap-3 rounded-lg border p-2 transition-colors',
+        dragOverSessionId === session.id
+          ? 'border-dashed border-blue-400 bg-blue-50/50'
+          : 'border-[#E2E8F0] bg-white'
+      )}
+    >
       <div className="flex min-w-[76px] shrink-0 flex-col items-center justify-center rounded-lg bg-blue-50 px-2 py-2 text-blue-700">
         <span className="text-xs font-bold whitespace-nowrap">
           {DAY_LABELS[session.day_of_week]} {formatHourLabel(session.time)}
@@ -219,7 +319,16 @@ function WeekGroupRow({
         ) : (
           <div className="flex h-full flex-wrap content-center gap-1.5">
             {participants.map((client) => (
-              <ReadOnlyParticipantCard key={client.id} client={client} />
+              <CompactParticipantCard
+                key={client.id}
+                client={client}
+                sessionId={session.id}
+                dragging={draggingKey === `${session.id}-${client.id}`}
+                justMoved={justMovedKey === `${session.id}-${client.id}`}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                onRemove={(clientId) => onRemove(session.id, clientId)}
+              />
             ))}
             {Array.from({ length: emptySlots }).map((_, i) => (
               <EmptySlot key={i} />
@@ -249,9 +358,10 @@ function WeekGroupRow({
 
 function WeekGroupsView({
   groupsByDay,
+  ...dnd
 }: {
   groupsByDay: { day: number; sessions: { session: Session; participants: Client[] }[] }[]
-}) {
+} & WeekGroupDndProps) {
   if (groupsByDay.length === 0) {
     return <p className="text-center text-slate-400 text-sm py-12">Sin sesiones de grupo fijo esta semana</p>
   }
@@ -263,7 +373,7 @@ function WeekGroupsView({
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">{DAY_NAMES_FULL[day]}</h3>
           <div className="space-y-2">
             {sessions.map(({ session, participants }) => (
-              <WeekGroupRow key={session.id} session={session} participants={participants} />
+              <WeekGroupRow key={session.id} session={session} participants={participants} {...dnd} />
             ))}
           </div>
         </div>
@@ -323,7 +433,7 @@ export function BoardClient({
     return map
   }, [assignments, activeDate, clientsById])
 
-  // ── Week-groups view data: fixed_group sessions only, Mon-Fri, read-only ──
+  // ── Week-groups view data: fixed_group sessions only, Mon-Fri ─────────────
   const groupsByDay = useMemo(() => {
     if (viewMode !== 'week-groups') return []
     const byDay: { day: number; sessions: { session: Session; participants: Client[] }[] }[] = []
@@ -368,6 +478,13 @@ export function BoardClient({
     setDragOverSessionId(null)
   }
 
+  // Each session belongs to one weekday, so its board date is derived from it
+  // (the week-groups view shows every day at once, not just activeDate).
+  const dateForSession = (sessionId: string) => {
+    const session = sessions.find((s) => s.id === sessionId)
+    return session ? dates[session.day_of_week] : activeDate
+  }
+
   const handleDrop = async (e: React.DragEvent, toSessionId: string) => {
     e.preventDefault()
     setDragOverSessionId(null)
@@ -380,50 +497,60 @@ export function BoardClient({
     const { clientId, sessionId: fromSessionId } = payload
     if (fromSessionId === toSessionId) return
 
+    const fromDate = dateForSession(fromSessionId)
+    const toDate = dateForSession(toSessionId)
+    const isOrigin = (a: Assignment) =>
+      a.date === fromDate && a.session_id === fromSessionId && a.client_id === clientId
+    const isTarget = (a: Assignment) =>
+      a.date === toDate && a.session_id === toSessionId && a.client_id === clientId
+    const alreadyInTarget = assignments.some(isTarget)
+
     // Optimistic update
     setAssignments((prev) => [
-      ...prev.filter((a) => !(a.date === activeDate && a.session_id === fromSessionId && a.client_id === clientId)),
-      { date: activeDate, session_id: toSessionId, client_id: clientId },
+      ...prev.filter((a) => !isOrigin(a) && !isTarget(a)),
+      { date: toDate, session_id: toSessionId, client_id: clientId },
     ])
     pulse(toSessionId, clientId)
 
     try {
-      await moveBoardParticipant(activeDate, fromSessionId, toSessionId, clientId)
+      await moveBoardParticipant(fromDate, fromSessionId, toSessionId, clientId, toDate)
       router.refresh()
     } catch (err: any) {
       toast.error(err?.message || 'Error al mover el participante')
       setAssignments((prev) => [
-        ...prev.filter((a) => !(a.date === activeDate && a.session_id === toSessionId && a.client_id === clientId)),
-        { date: activeDate, session_id: fromSessionId, client_id: clientId },
+        ...prev.filter((a) => !isOrigin(a) && (alreadyInTarget || !isTarget(a))),
+        { date: fromDate, session_id: fromSessionId, client_id: clientId },
       ])
     }
   }
 
   // ── Add / remove ───────────────────────────────────────────────────────
   const handleAdd = async (sessionId: string, clientId: string) => {
+    const date = dateForSession(sessionId)
     setAddingToSessionId(null)
-    setAssignments((prev) => [...prev, { date: activeDate, session_id: sessionId, client_id: clientId }])
+    setAssignments((prev) => [...prev, { date, session_id: sessionId, client_id: clientId }])
     pulse(sessionId, clientId)
     try {
-      await addBoardParticipant(activeDate, sessionId, clientId)
+      await addBoardParticipant(date, sessionId, clientId)
       router.refresh()
     } catch (err: any) {
       toast.error(err?.message || 'Error al añadir participante')
       setAssignments((prev) =>
-        prev.filter((a) => !(a.date === activeDate && a.session_id === sessionId && a.client_id === clientId))
+        prev.filter((a) => !(a.date === date && a.session_id === sessionId && a.client_id === clientId))
       )
     }
   }
 
   const handleRemove = async (sessionId: string, clientId: string) => {
+    const date = dateForSession(sessionId)
     const removed = assignments.find(
-      (a) => a.date === activeDate && a.session_id === sessionId && a.client_id === clientId
+      (a) => a.date === date && a.session_id === sessionId && a.client_id === clientId
     )
     setAssignments((prev) =>
-      prev.filter((a) => !(a.date === activeDate && a.session_id === sessionId && a.client_id === clientId))
+      prev.filter((a) => !(a.date === date && a.session_id === sessionId && a.client_id === clientId))
     )
     try {
-      await removeBoardParticipant(activeDate, sessionId, clientId)
+      await removeBoardParticipant(date, sessionId, clientId)
       router.refresh()
     } catch (err: any) {
       toast.error(err?.message || 'Error al quitar participante')
@@ -472,7 +599,18 @@ export function BoardClient({
       </div>
 
       {viewMode === 'week-groups' ? (
-        <WeekGroupsView groupsByDay={groupsByDay} />
+        <WeekGroupsView
+          groupsByDay={groupsByDay}
+          draggingKey={draggingKey}
+          justMovedKey={justMovedKey}
+          dragOverSessionId={dragOverSessionId}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragOverSession={setDragOverSessionId}
+          onDragLeaveSession={(sessionId) => setDragOverSessionId((id) => (id === sessionId ? null : id))}
+          onDrop={handleDrop}
+          onRemove={handleRemove}
+        />
       ) : (
         <>
       {/* ── Day selector ──────────────────────────────────────────────── */}

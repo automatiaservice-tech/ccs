@@ -115,16 +115,18 @@ export async function getBoardWeek(): Promise<BoardWeekData> {
   }
 }
 
-// ── Move a participant from one session to another, for one date ──────────
+// ── Move a participant from one session to another. `toDate` differs from
+// `date` only when the target session is on another weekday (week view) ────
 export async function moveBoardParticipant(
   date: string,
   fromSessionId: string,
   toSessionId: string,
-  clientId: string
+  clientId: string,
+  toDate: string = date
 ) {
   if (fromSessionId === toSessionId) return
   const supabase = await createClient()
-  console.log('[board] moveBoardParticipant:', { date, fromSessionId, toSessionId, clientId })
+  console.log('[board] moveBoardParticipant:', { date, toDate, fromSessionId, toSessionId, clientId })
 
   const { error: delErr } = await (supabase as any)
     .from('board_assignments')
@@ -138,7 +140,7 @@ export async function moveBoardParticipant(
   const { data, error: insErr } = await (supabase as any)
     .from('board_assignments')
     .upsert(
-      { session_id: toSessionId, client_id: clientId, date },
+      { session_id: toSessionId, client_id: clientId, date: toDate },
       { onConflict: 'session_id,client_id,date' }
     )
     .select()
